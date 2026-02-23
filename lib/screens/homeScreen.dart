@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:handpicked/screens/login.dart';
 import 'package:handpicked/screens/settings.dart';
+import 'package:handpicked/screens/menu.dart';
+import 'package:handpicked/screens/ingredient.dart';
+import 'package:handpicked/screens/menu.dart';
+import 'package:handpicked/screens/ingredient.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -386,7 +390,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 12),
 
-                  Container(
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const IngredientsListScreen()),
+                    ),
+                    child: Container(
                     height: 120,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(18),
@@ -463,6 +473,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
+                  ),
                 ],
               ),
             );
@@ -485,9 +496,15 @@ class _HomeScreenState extends State<HomeScreen> {
           top: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: const [
+            children: [
               _BottomNavItem(icon: Icons.home_rounded, label: "Home", active: true),
-              _BottomNavItem(icon: Icons.local_cafe_outlined, label: "Drink Menu"),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => MenuScreen()),
+                ),
+                child: _BottomNavItem(icon: Icons.local_cafe_outlined, label: "Menu"),
+              ),
               _BottomNavItem(icon: Icons.receipt_long_outlined, label: "Your Order"),
               _BottomNavItem(icon: Icons.favorite_border_rounded, label: "Favorites"),
             ],

@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:handpicked/screens/login.dart';
+import 'package:handpicked/screens/stock.dart';     // ← import StockScreen
+import 'package:handpicked/screens/inventory.dart'; // ← import InventoryScreen
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const Color _brown      = Color(0xFF7B4A1E);
@@ -86,7 +88,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Future<void> _goToProfile() async {
-    // Show sign-out confirmation from the profile icon
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -122,7 +123,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ── Widgets ──────────────────────────────────────────────────────────────────
+  // ── Home tab content ─────────────────────────────────────────────────────────
 
   Widget _header() {
     return Padding(
@@ -329,13 +330,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  // Squiggly chart icon — closest built-in match
                   const Icon(
                     Icons.show_chart_rounded,
                     color: _textDark,
@@ -353,7 +352,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ],
               ),
               GestureDetector(
-                onTap: () {}, // TODO: navigate to full log
+                onTap: () {},
                 child: const Text(
                   'See all',
                   style: TextStyle(
@@ -365,10 +364,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // Tiles
           ..._activities.map(_activityTile),
         ],
       ),
@@ -428,12 +424,46 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  // ── Home tab as a scrollable widget ─────────────────────────────────────────
+  Widget _homeTab() {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _header(),
+          _totalSalesCard(),
+          _bestSellerCard(),
+          _activitySection(),
+          const SizedBox(height: 28),
+        ],
+      ),
+    );
+  }
+
+  // ── Placeholder screens for tabs not yet built ───────────────────────────────
+  Widget _placeholderTab(String label) {
+    return Center(
+      child: Text(
+        '$label\nComing soon',
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color:      _textMuted,
+          fontSize:   16,
+          fontWeight: FontWeight.w600,
+          height:     1.6,
+        ),
+      ),
+    );
+  }
+
+  // ── Bottom nav ───────────────────────────────────────────────────────────────
   Widget _bottomNav() {
     const tabs = [
-      (Icons.home_rounded,             'Home'),
-      (Icons.shopping_bag_outlined,    'Orders'),
-      (Icons.inventory_2_outlined,     'Stock'),
-      (Icons.assignment_outlined,      'Inventory'),
+      (Icons.home_rounded,          'Home'),
+      (Icons.shopping_bag_outlined, 'Orders'),
+      (Icons.inventory_2_outlined,  'Stock'),
+      (Icons.assignment_outlined,   'Inventory'),
     ];
 
     return Container(
@@ -441,9 +471,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         color: _brown,
         boxShadow: [
           BoxShadow(
-            color:   _brown.withOpacity(0.45),
+            color:      _brown.withOpacity(0.45),
             blurRadius: 16,
-            offset:  const Offset(0, -4),
+            offset:     const Offset(0, -4),
           ),
         ],
       ),
@@ -456,8 +486,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             children: List.generate(tabs.length, (i) {
               final selected = _selectedTab == i;
               return GestureDetector(
-                onTap:     () => setState(() => _selectedTab = i),
-                behavior:  HitTestBehavior.opaque,
+                onTap:    () => setState(() => _selectedTab = i),
+                behavior: HitTestBehavior.opaque,
                 child: SizedBox(
                   width: 72,
                   child: Column(
@@ -468,7 +498,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         color: selected
                             ? Colors.white
                             : Colors.white.withOpacity(0.5),
-                        size:  24,
+                        size: 24,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -484,7 +514,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      // Active underline
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
                         height: 2.5,
@@ -505,6 +534,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
+  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -516,22 +546,22 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       );
     }
 
+    // Each index maps to a screen widget.
+    // IndexedStack keeps all screens alive so state is preserved on tab switch.
+    final screens = [
+      _homeTab(),                       // 0 — Home
+      _placeholderTab('Orders'),        // 1 — Orders  (replace when ready)
+      const StockScreen(),              // 2 — Stock
+      const InventoryScreen(),          // 3 — Inventory
+    ];
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: false,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _header(),
-              _totalSalesCard(),
-              _bestSellerCard(),
-              _activitySection(),
-              const SizedBox(height: 28),
-            ],
-          ),
+        child: IndexedStack(
+          index: _selectedTab,
+          children: screens,
         ),
       ),
       bottomNavigationBar: _bottomNav(),
