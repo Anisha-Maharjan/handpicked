@@ -20,7 +20,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _deleting = false;
 
   Future<void> _deleteAccountFlow() async {
-    // 1) Confirm
+    //Confirm
     final confirm = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
@@ -58,7 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirm != true) return;
 
-    // 2) Delete from Firebase
+    //Delete from Firebase
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       // already signed out
@@ -92,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
-      // This is common: Firebase requires "recent login" to delete account
+      //common: Firebase requires "recent login" to delete account
       if (e.code == 'requires-recent-login') {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -132,7 +132,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                //Top bar like screenshot
                 Padding(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
                   child: Row(
@@ -176,14 +175,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
 
-                //Delete Account (NO navigation, popup + delete)
+                //Delete Account
                 _SettingsItem(
                   icon: Icons.delete_outline_rounded,
                   title: "Delete Account",
                   onTap: _deleting ? null : _deleteAccountFlow,
                 ),
 
-                //Change Password (navigate)
+                //Change Password 
                 _SettingsItem(
                   icon: Icons.lock_outline_rounded,
                   title: "Change Password",

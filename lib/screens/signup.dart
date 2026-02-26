@@ -23,7 +23,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
 
-  // --- UI colors to match screenshot ---
   static const Color _primary = Color(0xFF8B5A2B);
   static const Color _softFill = Color(0xFFF5E6D3);
 
@@ -214,7 +213,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                     const SizedBox(height: 26),
 
-                    // --- Outer Rounded Container ---
+                    //Outer Rounded Container
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -229,7 +228,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // --- Login / Sign Up Toggle ---
+                          //Login / Sign Up Toggle
                           Container(
                             decoration: BoxDecoration(
                               color: _softFill,
@@ -309,7 +308,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 22),
 
-                          // --- Username ---
+                          //Username
                           TextField(
                             controller: _usernameController,
                             enabled: !_isLoading,
@@ -318,7 +317,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 16),
 
-                          // --- Email ---
+                          //Email
                           TextField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -328,7 +327,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 16),
 
-                          // --- Password ---
+                          //Password
                           TextField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -354,7 +353,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 16),
 
-                          // --- Confirm Password ---
+                          //Confirm Password
                           TextField(
                             controller: _confirmPasswordController,
                             obscureText: _obscureConfirmPassword,
@@ -381,7 +380,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 24),
 
-                          // --- Sign Up Button ---
+                          //Sign Up Button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -418,7 +417,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 14),
 
-                          // --- or continue with ---
+                          //or continue with
                           const Text(
                             "or continue with",
                             style: TextStyle(
@@ -429,7 +428,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                           const SizedBox(height: 12),
 
-                          // --- Google Button ---
+                          //Google Button
                           OutlinedButton.icon(
                             onPressed: _isLoading
                                 ? null

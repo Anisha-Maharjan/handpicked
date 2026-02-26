@@ -2,10 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:handpicked/screens/login.dart';
-import 'package:handpicked/screens/stock.dart';     // ← import StockScreen
-import 'package:handpicked/screens/inventory.dart'; // ← import InventoryScreen
+import 'package:handpicked/screens/stock.dart';     
+import 'package:handpicked/screens/inventory.dart';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
 const Color _brown      = Color(0xFF7B4A1E);
 const Color _brownLight = Color(0xFF9C6235);
 const Color _cream      = Color(0xFFF5EDD8);
@@ -13,7 +12,6 @@ const Color _cardCream  = Color(0xFFF9F3E8);
 const Color _textDark   = Color(0xFF3B2005);
 const Color _textMuted  = Color(0xFF9B8165);
 
-// ─── Activity data model ───────────────────────────────────────────────────────
 class _ActivityItem {
   final IconData icon;
   final String   message;
@@ -27,8 +25,6 @@ class _ActivityItem {
     this.isWarning = false,
   });
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
 class AdminHomeScreen extends StatefulWidget {
   final User user;
   const AdminHomeScreen({super.key, required this.user});
@@ -42,7 +38,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   String _adminName   = 'Admin';
   bool   _loading     = true;
 
-  // Hardcoded activities — swap with a Firestore StreamBuilder when ready
   final List<_ActivityItem> _activities = const [
     _ActivityItem(
       icon:    Icons.receipt_long_outlined,
@@ -123,7 +118,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ── Home tab content ─────────────────────────────────────────────────────────
+  //Home tab content
 
   Widget _header() {
     return Padding(
@@ -424,7 +419,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ── Home tab as a scrollable widget ─────────────────────────────────────────
+  //Home tab
   Widget _homeTab() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -441,7 +436,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ── Placeholder screens for tabs not yet built ───────────────────────────────
   Widget _placeholderTab(String label) {
     return Center(
       child: Text(
@@ -457,7 +451,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ── Bottom nav ───────────────────────────────────────────────────────────────
+  //Bottom nav
   Widget _bottomNav() {
     const tabs = [
       (Icons.home_rounded,          'Home'),
@@ -534,7 +528,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  // ── Build ────────────────────────────────────────────────────────────────────
+  //Build
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -546,13 +540,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       );
     }
 
-    // Each index maps to a screen widget.
-    // IndexedStack keeps all screens alive so state is preserved on tab switch.
     final screens = [
-      _homeTab(),                       // 0 — Home
-      _placeholderTab('Orders'),        // 1 — Orders  (replace when ready)
-      const StockScreen(),              // 2 — Stock
-      const InventoryScreen(),          // 3 — Inventory
+      _homeTab(),                       
+      _placeholderTab('Orders'),        
+      const StockScreen(),             
+      const InventoryScreen(),         
     ];
 
     return Scaffold(

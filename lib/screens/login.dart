@@ -21,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // --- UI colors to match screenshot ---
   static const Color _primary = Color(0xFF8B5A2B);
   static const Color _softFill = Color(0xFFF5E6D3);
 
@@ -202,7 +201,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const SizedBox(height: 18),
 
-                    // --- Top Logo — long-press to open Admin Login ---
                     GestureDetector(
                       onLongPress: () {
                         Navigator.push(
@@ -251,7 +249,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 26),
 
-                    // --- Outer Rounded Container (border only) ---
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
@@ -266,7 +263,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // --- Login / Sign Up Toggle (pill) ---
                           Container(
                             decoration: BoxDecoration(
                               color: _softFill,
@@ -346,7 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 22),
 
-                          // --- Email ---
+                          //Email
                           TextField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
@@ -356,7 +352,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 16),
 
-                          // --- Password ---
+                          //Password
                           TextField(
                             controller: _passwordController,
                             obscureText: _obscurePassword,
@@ -382,7 +378,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 6),
 
-                          // --- Forgot password (right aligned, brown) ---
+                          //Forgot password
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
@@ -402,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 14),
 
-                          // --- Login Button ---
+                          //Login Button
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -439,7 +435,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 14),
 
-                          // --- or continue with (brown) ---
                           const Text(
                             "or continue with",
                             style: TextStyle(
@@ -450,7 +445,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 12),
 
-                          // --- Google Button (outlined, rounded rectangle) ---
                           OutlinedButton.icon(
                             onPressed: _isLoading
                                 ? null

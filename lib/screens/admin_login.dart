@@ -49,7 +49,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
       return;
     }
 
-    // 1) Check secret access code first
+    //Check secret access code first
     if (accessCode != _kAdminAccessCode) {
       _showError('Invalid admin access code.');
       return;
@@ -58,8 +58,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // 2) Use the same FirebaseAuthService.signIn as the regular login
-      //    so identical error handling applies
+      //Use the same FirebaseAuthService.signIn as the regular login
       final result = await _authService.signIn(email, password);
 
       if (!result.success || result.user == null) {
@@ -67,7 +66,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         return;
       }
 
-      // 3) Verify UID exists in admin collection
+      //Verify UID exists in admin collection
       final adminDoc = await FirebaseFirestore.instance
           .collection('admin')
           .doc(result.user!.uid)
@@ -80,7 +79,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         return;
       }
 
-      // 4) All good — navigate to admin dashboard
+      //All good — navigate to admin dashboard
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
         MaterialPageRoute(
@@ -168,7 +167,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // ── Brand ───────────────────────────────────────────────────
+                //Brand 
                 const Icon(Icons.local_cafe_outlined, color: _brown, size: 58),
                 const SizedBox(height: 8),
                 const Text(
@@ -193,7 +192,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
 
                 const SizedBox(height: 36),
 
-                // ── Card ────────────────────────────────────────────────────
+                //Card 
                 Container(
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   decoration: BoxDecoration(

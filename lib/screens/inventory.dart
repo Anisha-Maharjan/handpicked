@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:handpicked/services/cloudinary_upload.dart';
 
-// ─── Palette ──────────────────────────────────────────────────────────────────
+//Palette
 const Color _brown      = Color(0xFF7B4A1E);
 const Color _brownLight = Color(0xFF9C6235);
 const Color _cream      = Color(0xFFF5EDD8);
@@ -9,10 +11,7 @@ const Color _cardCream  = Color(0xFFF9F3E8);
 const Color _textDark   = Color(0xFF3B2005);
 const Color _textMuted  = Color(0xFF9B8165);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// InventoryScreen is embedded inside AdminHomeScreen's IndexedStack.
-// No Scaffold or bottomNavigationBar here.
-// ─────────────────────────────────────────────────────────────────────────────
+
 class InventoryScreen extends StatefulWidget {
   const InventoryScreen({super.key});
 
@@ -30,7 +29,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     return t == 'bakery' || t == 'food' || t == 'pastry';
   }
 
-  // ── Header ──────────────────────────────────────────────────────────────────
+  // Header 
   Widget _header() {
     return const Padding(
       padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -46,7 +45,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Category tabs ────────────────────────────────────────────────────────────
+  //Category tabs 
   Widget _categoryTabs() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
@@ -82,7 +81,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Product grid ─────────────────────────────────────────────────────────────
+  //Product grid
   Widget _productGrid(List<QueryDocumentSnapshot> allDocs) {
     final filtered = allDocs.where((doc) {
       final data = doc.data() as Map<String, dynamic>;
@@ -111,7 +110,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Individual product tile ──────────────────────────────────────────────────
+  //Individual product tile 
   Widget _productTile(Map<String, dynamic> data, String docId) {
     final String  name     = (data['name']     as String?) ?? 'Unknown';
     final String? imageUrl = (data['imageURL'] as String?);
@@ -190,7 +189,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
       );
 
-  // ── Add new item tile ────────────────────────────────────────────────────────
+  //Add new item tile
   Widget _addNewTile() {
     return GestureDetector(
       onTap: _showAddProductDialog,
@@ -218,8 +217,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
       ),
     );
   }
-
-  // ── Ingredients chip builder (shared by both dialogs) ────────────────────────
   Widget _ingredientChips(List<String> ingredients, StateSetter setDlgState) {
     return Wrap(
       spacing: 6,
@@ -255,7 +252,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Ingredient input row (shared by both dialogs) ────────────────────────────
   Widget _ingredientInputRow(
     TextEditingController ctrl,
     List<String> ingredients,
@@ -297,7 +293,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Product options bottom sheet ─────────────────────────────────────────────
   void _showProductOptions(Map<String, dynamic> data, String docId) {
     final String name     = (data['name']     as String?) ?? 'Product';
     final bool   isActive = (data['isActive'] as bool?)   ?? true;
@@ -382,7 +377,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Delete confirmation ──────────────────────────────────────────────────────
+  //Delete confirmation 
   Future<void> _confirmDelete(String docId, String name) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -412,15 +407,17 @@ class _InventoryScreenState extends State<InventoryScreen> {
     await FirebaseFirestore.instance.collection('ProductID').doc(docId).delete();
   }
 
-  // ── Add product dialog ───────────────────────────────────────────────────────
+  //Add product dialog 
   void _showAddProductDialog() {
     final nameCtrl       = TextEditingController();
     final priceCtrl      = TextEditingController();
     final descCtrl       = TextEditingController();
-    final imgCtrl        = TextEditingController();
     final ingCtrl        = TextEditingController();
     String selectedType  = _selectedCategory == 0 ? 'drink' : 'bakery';
     final List<String> ingredients = [];
+    File?   pickedImage;
+    String? uploadedUrl;
+    bool    uploading = false;
 
     showDialog(
       context: context,
@@ -434,13 +431,26 @@ class _InventoryScreenState extends State<InventoryScreen> {
               mainAxisSize:       MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Image picker ──
+                _imagePicker(
+                  pickedImage: pickedImage,
+                  existingUrl: uploadedUrl,
+                  uploading:   uploading,
+                  onPick: () async {
+                    setDlgState(() => uploading = true);
+                    final url = await pickAndUploadImage();
+                    setDlgState(() {
+                      uploadedUrl  = url;
+                      uploading    = false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
                 _dialogField(nameCtrl,  'Name'),
                 const SizedBox(height: 10),
                 _dialogField(priceCtrl, 'Price', keyboardType: TextInputType.number),
                 const SizedBox(height: 10),
                 _dialogField(descCtrl,  'Description'),
-                const SizedBox(height: 10),
-                _dialogField(imgCtrl,   'Image URL'),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value:      selectedType,
@@ -452,8 +462,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onChanged: (v) => setDlgState(() => selectedType = v ?? selectedType),
                 ),
                 const SizedBox(height: 14),
-
-                // ── Ingredients ──
                 const Text('Ingredients',
                     style: TextStyle(
                         color: _textDark, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -472,14 +480,14 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: const Text('Cancel', style: TextStyle(color: _textMuted)),
             ),
             ElevatedButton(
-              onPressed: () async {
+              onPressed: uploading ? null : () async {
                 if (nameCtrl.text.trim().isEmpty) return;
                 Navigator.pop(ctx);
                 await FirebaseFirestore.instance.collection('ProductID').add({
                   'name':         nameCtrl.text.trim(),
                   'price':        num.tryParse(priceCtrl.text.trim()) ?? 0,
                   'description':  descCtrl.text.trim(),
-                  'imageURL':     imgCtrl.text.trim(),
+                  'imageURL':     uploadedUrl ?? '',
                   'type':         selectedType,
                   'isActive':     true,
                   'Availability': 'in_stock',
@@ -500,16 +508,16 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Edit product dialog ──────────────────────────────────────────────────────
+  //Edit product dialog
   void _showEditProductDialog(Map<String, dynamic> data, String docId) {
     final nameCtrl  = TextEditingController(text: (data['name']        as String?) ?? '');
     final priceCtrl = TextEditingController(text: (data['price'] ?? '').toString());
     final descCtrl  = TextEditingController(text: (data['description'] as String?) ?? '');
-    final imgCtrl   = TextEditingController(text: (data['imageURL']    as String?) ?? '');
     final ingCtrl   = TextEditingController();
-    String selectedType = (data['type'] as String?) ?? 'drink';
+    String selectedType  = (data['type'] as String?) ?? 'drink';
+    String? uploadedUrl  = (data['imageURL'] as String?);
+    bool    uploading    = false;
 
-    // Pre-populate ingredients from Firestore (stored as List<dynamic>)
     final List<String> ingredients = List<String>.from(
       (data['ingredients'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
@@ -528,13 +536,26 @@ class _InventoryScreenState extends State<InventoryScreen> {
               mainAxisSize:       MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // ── Image picker ──
+                _imagePicker(
+                  pickedImage: null,
+                  existingUrl: uploadedUrl,
+                  uploading:   uploading,
+                  onPick: () async {
+                    setDlgState(() => uploading = true);
+                    final url = await pickAndUploadImage();
+                    setDlgState(() {
+                      if (url != null) uploadedUrl = url;
+                      uploading = false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
                 _dialogField(nameCtrl,  'Name'),
                 const SizedBox(height: 10),
                 _dialogField(priceCtrl, 'Price', keyboardType: TextInputType.number),
                 const SizedBox(height: 10),
                 _dialogField(descCtrl,  'Description'),
-                const SizedBox(height: 10),
-                _dialogField(imgCtrl,   'Image URL'),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value:      selectedType,
@@ -546,8 +567,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onChanged: (v) => setDlgState(() => selectedType = v ?? selectedType),
                 ),
                 const SizedBox(height: 14),
-
-                // ── Ingredients ──
                 const Text('Ingredients',
                     style: TextStyle(
                         color: _textDark, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -566,7 +585,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               child: const Text('Cancel', style: TextStyle(color: _textMuted)),
             ),
             ElevatedButton(
-              onPressed: () async {
+              onPressed: uploading ? null : () async {
                 Navigator.pop(ctx);
                 await FirebaseFirestore.instance
                     .collection('ProductID')
@@ -575,7 +594,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   'name':        nameCtrl.text.trim(),
                   'price':       num.tryParse(priceCtrl.text.trim()) ?? 0,
                   'description': descCtrl.text.trim(),
-                  'imageURL':    imgCtrl.text.trim(),
+                  'imageURL':    uploadedUrl ?? '',
                   'type':        selectedType,
                   'ingredients': ingredients,
                 });
@@ -593,7 +612,68 @@ class _InventoryScreenState extends State<InventoryScreen> {
     );
   }
 
-  // ── Dialog helpers ───────────────────────────────────────────────────────────
+  //Image picker widget
+  Widget _imagePicker({
+    required File?   pickedImage,
+    required String? existingUrl,
+    required bool    uploading,
+    required VoidCallback onPick,
+  }) {
+    return GestureDetector(
+      onTap: uploading ? null : onPick,
+      child: Container(
+        width:  double.infinity,
+        height: 120,
+        decoration: BoxDecoration(
+          color:        _cream,
+          borderRadius: BorderRadius.circular(12),
+          border:       Border.all(color: _brown.withOpacity(0.3)),
+        ),
+        child: uploading
+            ? const Center(child: CircularProgressIndicator(color: _brown))
+            : existingUrl != null && existingUrl.isNotEmpty
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(11),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.network(existingUrl, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _imgPickerPlaceholder()),
+                        Positioned(
+                          bottom: 6, right: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color:        Colors.black.withOpacity(0.55),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.camera_alt_rounded, color: Colors.white, size: 12),
+                                SizedBox(width: 4),
+                                Text('Change', style: TextStyle(color: Colors.white, fontSize: 11)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : _imgPickerPlaceholder(),
+      ),
+    );
+  }
+
+  Widget _imgPickerPlaceholder() => Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.add_photo_alternate_outlined, color: _brown.withOpacity(0.6), size: 32),
+          const SizedBox(height: 6),
+          Text('Tap to add image', style: TextStyle(color: _textMuted, fontSize: 12)),
+        ],
+      );
+
   Widget _dialogField(
     TextEditingController ctrl,
     String label, {
@@ -619,7 +699,6 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
       );
 
-  // ── Build ────────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Column(

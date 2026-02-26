@@ -57,7 +57,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
 
-      //No heavy AppBar (screenshot look)
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -67,7 +66,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
               children: [
                 const SizedBox(height: 10),
 
-                // Logo + Brand
                 Column(
                   children: [
                     Icon(

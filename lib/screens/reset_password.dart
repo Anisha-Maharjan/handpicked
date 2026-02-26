@@ -77,14 +77,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     setState(() => _updating = true);
 
     try {
-      // ✅ re-authenticate with current password
+      //re-authenticate with current password
       final credential = EmailAuthProvider.credential(
         email: user.email!,
         password: current,
       );
       await user.reauthenticateWithCredential(credential);
 
-      // ✅ update password
+      //update password
       await user.updatePassword(newPass);
 
       if (!mounted) return;
@@ -177,7 +177,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               padding: const EdgeInsets.fromLTRB(18, 10, 18, 20),
               child: Column(
                 children: [
-                  // top back (like screenshot)
                   Row(
                     children: [
                       InkWell(
@@ -198,7 +197,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
                   const SizedBox(height: 10),
 
-                  // logo + text (simple icon as placeholder, replace with your asset if you have it)
                   Column(
                     children: [
                       Icon(Icons.local_cafe_outlined, size: 62, color: _brown),
@@ -227,7 +225,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
                   const SizedBox(height: 28),
 
-                  // card container like screenshot
                   Container(
                     width: 330,
                     padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
