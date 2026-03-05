@@ -1,6 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:handpicked/providers/cart_provider.dart';
+import 'package:handpicked/screens/bakery_detail.dart';
+import 'package:handpicked/screens/cart_screen.dart';
+import 'package:handpicked/screens/notifications_screen.dart';
 import 'package:handpicked/screens/product_detail.dart';
+import 'package:handpicked/screens/your_orders_screen.dart';
 
 const Color _brown     = Color(0xFF834D1E);
 const Color _cream     = Color(0xFFF5EDD8);
@@ -15,9 +20,9 @@ class MenuScreen extends StatefulWidget {
 }
 
 class _MenuScreenState extends State<MenuScreen> {
-  int _selectedTab = 0;
-  final _searchCtrl = TextEditingController();
-  String _searchQuery = '';
+  int    _selectedTab  = 0;
+  final  _searchCtrl   = TextEditingController();
+  String _searchQuery  = '';
 
   final List<String> _tabs = ['Drink', 'Bakery', 'Custom'];
 
@@ -30,11 +35,16 @@ class _MenuScreenState extends State<MenuScreen> {
   bool _matchesTab(String type) {
     final t = type.toLowerCase().trim();
     switch (_selectedTab) {
-      case 0: return t == 'drink' || t == 'drinks';
+      case 0: return t == 'drink'  || t == 'drinks';
       case 1: return t == 'bakery' || t == 'food' || t == 'pastry';
       case 2: return t == 'custom';
       default: return false;
     }
+  }
+
+  bool _isBakery(String type) {
+    final t = type.toLowerCase().trim();
+    return t == 'bakery' || t == 'food' || t == 'pastry';
   }
 
   Widget _header() {
@@ -43,8 +53,8 @@ class _MenuScreenState extends State<MenuScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: const Text(
+          const Expanded(
+            child: Text(
               'What would you\nlike to drink today?',
               style: TextStyle(
                 color:      _brown,
@@ -57,32 +67,64 @@ class _MenuScreenState extends State<MenuScreen> {
           const SizedBox(width: 12),
           Row(
             children: [
-              _HeaderIcon(icon: Icons.shopping_cart_outlined, onTap: () {}),
+              _CartIcon(),
               const SizedBox(width: 6),
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  _HeaderIcon(icon: Icons.notifications_none_rounded, onTap: () {}),
-                  Positioned(
-                    right: 2, top: 2,
-                    child: Container(
-                      width: 7, height: 7,
-                      decoration: BoxDecoration(
-                        color: Colors.redAccent,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1),
+              GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const NotificationsScreen()),
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: const Icon(Icons.notifications_none_rounded,
+                          color: _textDark, size: 22),
+                    ),
+                    Positioned(
+                      right: 4, top: 4,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream: _unreadNotifStream,
+                        builder: (ctx, snap) {
+                          final count = snap.data?.docs.length ?? 0;
+                          if (count == 0) return const SizedBox.shrink();
+                          return Container(
+                            width:  7, height: 7,
+                            decoration: BoxDecoration(
+                              color:  Colors.redAccent,
+                              shape:  BoxShape.circle,
+                              border: Border.all(
+                                  color: Colors.white, width: 1),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(width: 6),
-              _HeaderIcon(icon: Icons.menu_rounded, onTap: () {}),
+              InkWell(
+                onTap:        () {},
+                borderRadius: BorderRadius.circular(24),
+                child: const Padding(
+                  padding: EdgeInsets.all(5),
+                  child:   Icon(Icons.menu_rounded,
+                      color: _textDark, size: 22),
+                ),
+              ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  Stream<QuerySnapshot>? get _unreadNotifStream {
+    final uid =
+        FirebaseFirestore.instance.collection('notifications').doc().id;
+    return null;
   }
 
   Widget _searchBar() {
@@ -108,8 +150,10 @@ class _MenuScreenState extends State<MenuScreen> {
           style:       const TextStyle(fontSize: 13, color: _textDark),
           decoration: InputDecoration(
             hintText:       'Search..',
-            hintStyle:      TextStyle(color: Colors.grey.shade400, fontSize: 13),
-            prefixIcon:     Icon(Icons.search, color: Colors.grey.shade400, size: 18),
+            hintStyle:      TextStyle(
+                color: Colors.grey.shade400, fontSize: 13),
+            prefixIcon:     Icon(Icons.search,
+                color: Colors.grey.shade400, size: 18),
             border:         InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
@@ -130,7 +174,9 @@ class _MenuScreenState extends State<MenuScreen> {
         child: Row(
           children: List.generate(_tabs.length * 2 - 1, (i) {
             if (i.isOdd) {
-              return Container(width: 1, height: 20, color: _brown.withOpacity(0.25));
+              return Container(
+                  width: 1, height: 20,
+                  color: _brown.withOpacity(0.25));
             }
             final tabIdx  = i ~/ 2;
             final selected = _selectedTab == tabIdx;
@@ -138,7 +184,7 @@ class _MenuScreenState extends State<MenuScreen> {
               child: GestureDetector(
                 onTap: () => setState(() => _selectedTab = tabIdx),
                 child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
+                  duration:   const Duration(milliseconds: 200),
                   decoration: BoxDecoration(
                     color:        selected ? _brown : Colors.transparent,
                     borderRadius: BorderRadius.circular(24),
@@ -195,7 +241,12 @@ class _MenuScreenState extends State<MenuScreen> {
       itemBuilder: (ctx, i) {
         final data  = filtered[i].data() as Map<String, dynamic>;
         final docId = filtered[i].id;
-        return _ProductTile(data: data, docId: docId);
+        final type  = (data['type'] as String?) ?? '';
+        return _ProductTile(
+          data:      data,
+          docId:     docId,
+          isBakery:  _isBakery(type),
+        );
       },
     );
   }
@@ -206,7 +257,10 @@ class _MenuScreenState extends State<MenuScreen> {
       decoration: const BoxDecoration(
         color: _brown,
         boxShadow: [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -4)),
+          BoxShadow(
+              color:      Colors.black26,
+              blurRadius: 10,
+              offset:     Offset(0, -4)),
         ],
       ),
       child: SafeArea(
@@ -220,9 +274,25 @@ class _MenuScreenState extends State<MenuScreen> {
               active: false,
               onTap:  () => Navigator.of(context).pop(),
             ),
-            _NavItem(icon: Icons.local_cafe_outlined, label: 'Drink Menu', active: true, onTap: () {}),
-            _NavItem(icon: Icons.receipt_long_outlined, label: 'Your Order', active: false, onTap: () {}),
-            _NavItem(icon: Icons.favorite_border_rounded, label: 'Favorites', active: false, onTap: () {}),
+            _NavItem(
+                icon:   Icons.local_cafe_outlined,
+                label:  'Drink Menu',
+                active: true,
+                onTap:  () {}),
+            _NavItem(
+              icon:   Icons.receipt_long_outlined,
+              label:  'Your Order',
+              active: false,
+              onTap:  () => Navigator.of(context).push(
+                MaterialPageRoute(
+                    builder: (_) => const YourOrdersScreen()),
+              ),
+            ),
+            _NavItem(
+                icon:   Icons.favorite_border_rounded,
+                label:  'Favorites',
+                active: false,
+                onTap:  () {}),
           ],
         ),
       ),
@@ -275,11 +345,70 @@ class _MenuScreenState extends State<MenuScreen> {
   }
 }
 
+class _CartIcon extends StatelessWidget {
+  const _CartIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = CartProviderWidget.of(context);
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const CartScreen()),
+      ),
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.all(5),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(Icons.shopping_cart_outlined,
+                color: _textDark, size: 22),
+            if (cart.totalCount > 0)
+              Positioned(
+                right: -4, top: -4,
+                child: Container(
+                  width:  16,
+                  height: 16,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                      color: _brown, shape: BoxShape.circle),
+                  child: Text(
+                    '${cart.totalCount}',
+                    style: const TextStyle(
+                        color:      Colors.white,
+                        fontSize:   9,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ProductTile extends StatelessWidget {
   final Map<String, dynamic> data;
-  final String docId;
+  final String               docId;
+  final bool                 isBakery;
 
-  const _ProductTile({required this.data, required this.docId});
+  const _ProductTile({
+    required this.data,
+    required this.docId,
+    required this.isBakery,
+  });
+
+  void _navigate(BuildContext context) {
+    if (isBakery) {
+      BakeryDetailScreen.show(context, docId: docId, data: data);
+    } else {
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => ProductDetailScreen(
+            docId: docId, initialData: data),
+      ));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -288,14 +417,7 @@ class _ProductTile extends StatelessWidget {
     final String? imageUrl = (data['imageURL'] as String?);
 
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ProductDetailScreen(
-            docId:       docId,
-            initialData: data,
-          ),
-        ),
-      ),
+      onTap: () => _navigate(context),
       child: Container(
         decoration: BoxDecoration(
           color:        Colors.white,
@@ -319,11 +441,9 @@ class _ProductTile extends StatelessWidget {
                 width:  90,
                 height: 90,
                 child: imageUrl != null && imageUrl.isNotEmpty
-                    ? Image.network(
-                        imageUrl,
+                    ? Image.network(imageUrl,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _placeholder(),
-                      )
+                        errorBuilder: (_, __, ___) => _placeholder())
                     : _placeholder(),
               ),
             ),
@@ -334,24 +454,18 @@ class _ProductTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      color:      _textDark,
-                      fontSize:   14,
-                      fontWeight: FontWeight.w700,
-                      height:     1.2,
-                    ),
-                  ),
+                  Text(name,
+                      style: const TextStyle(
+                          color:      _textDark,
+                          fontSize:   14,
+                          fontWeight: FontWeight.w700,
+                          height:     1.2)),
                   const SizedBox(height: 6),
-                  Text(
-                    'Rs ${price.toStringAsFixed(0)}.000',
-                    style: const TextStyle(
-                      color:      _brown,
-                      fontSize:   13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text('Rs ${price.toStringAsFixed(0)}.000',
+                      style: const TextStyle(
+                          color:      _brown,
+                          fontSize:   13,
+                          fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -360,7 +474,24 @@ class _ProductTile extends StatelessWidget {
               padding: const EdgeInsets.only(right: 14),
               child: GestureDetector(
                 onTap: () {
-                  // TODO: add to cart
+                  final cart = CartProviderWidget.of(context);
+                  cart.addItem(CartItem(
+                    docId:     docId,
+                    name:      name,
+                    unitPrice: price,
+                    imageUrl:  imageUrl,
+                  ));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('$name added to cart!',
+                          style: const TextStyle(color: Colors.white)),
+                      backgroundColor: _brown,
+                      duration:        const Duration(seconds: 2),
+                      behavior:        SnackBarBehavior.floating,
+                      shape:           RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
                 },
                 child: Container(
                   width:  34,
@@ -369,7 +500,8 @@ class _ProductTile extends StatelessWidget {
                     color:        _brown,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 20),
+                  child: const Icon(Icons.add,
+                      color: Colors.white, size: 20),
                 ),
               ),
             ),
@@ -382,8 +514,11 @@ class _ProductTile extends StatelessWidget {
   Widget _placeholder() => Container(
         color: const Color(0xFFF5EDD8),
         child: Center(
-          child: Icon(Icons.local_cafe_rounded,
-              color: const Color(0xFF834D1E).withOpacity(0.3), size: 30),
+          child: Icon(
+            Icons.local_cafe_rounded,
+            color: const Color(0xFF834D1E).withOpacity(0.3),
+            size:  30,
+          ),
         ),
       );
 }
@@ -401,7 +536,7 @@ class _HeaderIcon extends StatelessWidget {
       borderRadius: BorderRadius.circular(24),
       child: Padding(
         padding: const EdgeInsets.all(5),
-        child: Icon(icon, color: const Color(0xFF1E1E1E), size: 22),
+        child:   Icon(icon, color: _textDark, size: 22),
       ),
     );
   }
@@ -422,7 +557,8 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Color fg = active ? Colors.white : Colors.white.withOpacity(0.75);
+    final Color fg =
+        active ? Colors.white : Colors.white.withOpacity(0.75);
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
@@ -432,21 +568,20 @@ class _NavItem extends StatelessWidget {
           children: [
             Icon(icon, color: fg, size: 22),
             const SizedBox(height: 4),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: fg, fontSize: 10, fontWeight: FontWeight.w700),
-            ),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color:      fg,
+                    fontSize:   10,
+                    fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               height: 2,
               width:  active ? 18 : 0,
               decoration: BoxDecoration(
-                color:        Colors.white,
-                borderRadius: BorderRadius.circular(99),
-              ),
+                  color:        Colors.white,
+                  borderRadius: BorderRadius.circular(99)),
             ),
           ],
         ),

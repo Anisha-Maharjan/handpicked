@@ -2,8 +2,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:handpicked/screens/login.dart';
-import 'package:handpicked/screens/stock.dart';     
+import 'package:handpicked/screens/stock.dart';
 import 'package:handpicked/screens/inventory.dart';
+import 'package:handpicked/screens/admin_orders_screen.dart';
+import 'package:handpicked/screens/admin_notifications_screen.dart';
 
 const Color _brown      = Color(0xFF7B4A1E);
 const Color _brownLight = Color(0xFF9C6235);
@@ -12,19 +14,6 @@ const Color _cardCream  = Color(0xFFF9F3E8);
 const Color _textDark   = Color(0xFF3B2005);
 const Color _textMuted  = Color(0xFF9B8165);
 
-class _ActivityItem {
-  final IconData icon;
-  final String   message;
-  final String   time;
-  final bool     isWarning;
-
-  const _ActivityItem({
-    required this.icon,
-    required this.message,
-    required this.time,
-    this.isWarning = false,
-  });
-}
 class AdminHomeScreen extends StatefulWidget {
   final User user;
   const AdminHomeScreen({super.key, required this.user});
@@ -37,25 +26,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int    _selectedTab = 0;
   String _adminName   = 'Admin';
   bool   _loading     = true;
-
-  final List<_ActivityItem> _activities = const [
-    _ActivityItem(
-      icon:    Icons.receipt_long_outlined,
-      message: 'New order has been placed ORD-101.',
-      time:    '30 min ago',
-    ),
-    _ActivityItem(
-      icon:    Icons.receipt_long_outlined,
-      message: 'Order has been completed ORD-100.',
-      time:    '40 min ago',
-    ),
-    _ActivityItem(
-      icon:      Icons.warning_amber_rounded,
-      message:   'Whole milk stock is critically low.',
-      time:      '3 hr ago',
-      isWarning: true,
-    ),
-  ];
 
   @override
   void initState() {
@@ -118,8 +88,6 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  //Home tab content
-
   Widget _header() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -129,9 +97,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           Text(
             'Good day, $_adminName!',
             style: const TextStyle(
-              color:       _brown,
-              fontSize:    22,
-              fontWeight:  FontWeight.w800,
+              color:         _brown,
+              fontSize:      22,
+              fontWeight:    FontWeight.w800,
               letterSpacing: -0.3,
             ),
           ),
@@ -141,10 +109,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               width:  40,
               height: 40,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                shape:  BoxShape.circle,
                 border: Border.all(
                     color: _brown.withOpacity(0.3), width: 1.5),
-                color: _cream,
+                color:  _cream,
               ),
               child: const Icon(
                 Icons.person_outline_rounded,
@@ -171,44 +139,41 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           if (snap.hasData) {
             for (final doc in snap.data!.docs) {
               final d = doc.data() as Map<String, dynamic>;
-              total += ((d['total'] ?? d['amount'] ?? 0) as num).toDouble();
+              total +=
+                  ((d['total'] ?? d['amount'] ?? 0) as num).toDouble();
             }
           }
-
           return Container(
             width:   double.infinity,
             padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
             decoration: BoxDecoration(
-              color:         _brown,
-              borderRadius:  BorderRadius.circular(18),
+              color:        _brown,
+              borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color:   _brown.withOpacity(0.35),
+                  color:      _brown.withOpacity(0.35),
                   blurRadius: 14,
-                  offset:  const Offset(0, 6),
+                  offset:     const Offset(0, 6),
                 ),
               ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Total Sales Today',
-                  style: TextStyle(
-                    color:      Colors.white.withOpacity(0.75),
-                    fontSize:   13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
+                Text('Total Sales Today',
+                    style: TextStyle(
+                        color:      Colors.white.withOpacity(0.75),
+                        fontSize:   13,
+                        fontWeight: FontWeight.w500)),
                 const SizedBox(height: 8),
                 Text(
                   snap.connectionState == ConnectionState.waiting
                       ? 'Loading…'
                       : 'Rs. ${total.toStringAsFixed(0)}',
                   style: const TextStyle(
-                    color:        Colors.white,
-                    fontSize:     28,
-                    fontWeight:   FontWeight.w800,
+                    color:         Colors.white,
+                    fontSize:      28,
+                    fontWeight:    FontWeight.w800,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -225,20 +190,18 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
       child: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
-            .collection('products')
+            .collection('ProductID')
             .orderBy('salesCount', descending: true)
             .limit(1)
             .snapshots(),
         builder: (ctx, snap) {
           String  name     = 'Iced Coffee\nSweet Heaven';
           String? imageUrl;
-
           if (snap.hasData && snap.data!.docs.isNotEmpty) {
-            final d = snap.data!.docs.first.data() as Map<String, dynamic>;
-            name     = (d['name'] as String?) ?? name;
-            imageUrl = d['imageUrl'] as String?;
+            final d  = snap.data!.docs.first.data() as Map<String, dynamic>;
+            name     = (d['name']     as String?) ?? name;
+            imageUrl = (d['imageURL'] as String?);
           }
-
           return Container(
             width:   double.infinity,
             padding: const EdgeInsets.fromLTRB(22, 16, 12, 16),
@@ -247,52 +210,41 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               borderRadius: BorderRadius.circular(18),
               boxShadow: [
                 BoxShadow(
-                  color:   _brown.withOpacity(0.3),
+                  color:      _brown.withOpacity(0.3),
                   blurRadius: 12,
-                  offset:  const Offset(0, 5),
+                  offset:     const Offset(0, 5),
                 ),
               ],
             ),
             child: Row(
               children: [
-                // Text side
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Best seller of the week',
-                        style: TextStyle(
-                          color:      Colors.white.withOpacity(0.7),
-                          fontSize:   11.5,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      Text('Best seller of the week',
+                          style: TextStyle(
+                              color:      Colors.white.withOpacity(0.7),
+                              fontSize:   11.5,
+                              fontWeight: FontWeight.w500)),
                       const SizedBox(height: 8),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color:      Colors.white,
-                          fontSize:   18,
-                          fontWeight: FontWeight.w800,
-                          height:     1.25,
-                        ),
-                      ),
+                      Text(name,
+                          style: const TextStyle(
+                              color:      Colors.white,
+                              fontSize:   18,
+                              fontWeight: FontWeight.w800,
+                              height:     1.25)),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Product image
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          width:  86,
-                          height: 86,
+                      ? Image.network(imageUrl,
+                          width:  86, height: 86,
                           fit:    BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _imgPlaceholder(),
-                        )
+                          errorBuilder: (_, __, ___) => _imgPlaceholder())
                       : _imgPlaceholder(),
                 ),
               ],
@@ -303,23 +255,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  Widget _imgPlaceholder() {
-    return Container(
-      width:  86,
-      height: 86,
-      decoration: BoxDecoration(
-        color:        _brownLight,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(
-        Icons.local_cafe_rounded,
-        color: Colors.white.withOpacity(0.55),
-        size:  36,
-      ),
-    );
-  }
+  Widget _imgPlaceholder() => Container(
+        width:  86, height: 86,
+        decoration: BoxDecoration(
+            color:        _brownLight,
+            borderRadius: BorderRadius.circular(14)),
+        child: Icon(Icons.local_cafe_rounded,
+            color: Colors.white.withOpacity(0.55), size: 36),
+      );
 
-  Widget _activitySection() {
+  Widget _activitySection(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
       child: Column(
@@ -329,98 +274,132 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
-                children: [
-                  const Icon(
-                    Icons.show_chart_rounded,
-                    color: _textDark,
-                    size:  18,
-                  ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Activity',
-                    style: TextStyle(
-                      color:      _textDark,
-                      fontSize:   16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                children: const [
+                  Icon(Icons.show_chart_rounded,
+                      color: _textDark, size: 18),
+                  SizedBox(width: 6),
+                  Text('Activity',
+                      style: TextStyle(
+                          color:      _textDark,
+                          fontSize:   16,
+                          fontWeight: FontWeight.w700)),
                 ],
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => AdminNotificationsScreen()),
+                ),
                 child: const Text(
                   'See all',
                   style: TextStyle(
-                    color:      _brown,
-                    fontSize:   13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                      color:      _brown,
+                      fontSize:   13,
+                      fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          ..._activities.map(_activityTile),
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('adminNotifications')
+                .snapshots(),
+            builder: (ctx, snap) {
+              if (snap.connectionState == ConnectionState.waiting) {
+                return const Center(
+                    child: CircularProgressIndicator(color: _brown));
+              }
+              final raw = snap.data?.docs ?? [];
+              if (raw.isEmpty) {
+                return const Text('No recent activity.',
+                    style: TextStyle(color: _textMuted, fontSize: 13));
+              }
+              // Sort client-side newest first, then take top 5
+              final sorted = [...raw];
+              sorted.sort((a, b) {
+                final aT = (a.data() as Map)['createdAt'] as Timestamp?;
+                final bT = (b.data() as Map)['createdAt'] as Timestamp?;
+                if (aT == null || bT == null) return 0;
+                return bT.compareTo(aT);
+              });
+              final docs = sorted.take(5).toList();
+              return Column(
+                children: docs.map((doc) {
+                  final data      = doc.data() as Map<String, dynamic>;
+                  final message   = (data['message'] as String?) ?? '';
+                  final type      = (data['type']    as String?) ?? '';
+                  final ts        = data['createdAt'] as Timestamp?;
+                  final isWarning = type == 'stock_warning';
+                  final diff = ts != null
+                      ? DateTime.now().difference(ts.toDate())
+                      : null;
+                  final timeStr = diff == null
+                      ? ''
+                      : diff.inMinutes < 60
+                          ? '${diff.inMinutes} min ago'
+                          : diff.inHours < 24
+                              ? '${diff.inHours} hr ago'
+                              : '${diff.inDays} day ago';
+
+                  return Container(
+                    margin:  const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 13),
+                    decoration: BoxDecoration(
+                      color:        _cardCream,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                          color: _brown.withOpacity(0.12)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 1),
+                          child: Icon(
+                            isWarning
+                                ? Icons.warning_amber_rounded
+                                : Icons.receipt_long_outlined,
+                            color: isWarning
+                                ? const Color(0xFFB05C00)
+                                : _brown.withOpacity(0.75),
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(message,
+                                  style: const TextStyle(
+                                      color:      _textDark,
+                                      fontSize:   13,
+                                      fontWeight: FontWeight.w600,
+                                      height:     1.35)),
+                              const SizedBox(height: 3),
+                              Text(timeStr,
+                                  style: const TextStyle(
+                                      color:    _textMuted,
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
-  Widget _activityTile(_ActivityItem item) {
-    return Container(
-      margin:  const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      decoration: BoxDecoration(
-        color:        _cardCream,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _brown.withOpacity(0.12)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 1),
-            child: Icon(
-              item.icon,
-              color: item.isWarning
-                  ? const Color(0xFFB05C00)
-                  : _brown.withOpacity(0.75),
-              size:  20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.message,
-                  style: const TextStyle(
-                    color:      _textDark,
-                    fontSize:   13,
-                    fontWeight: FontWeight.w600,
-                    height:     1.35,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  item.time,
-                  style: const TextStyle(
-                    color:      _textMuted,
-                    fontSize:   11.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  //Home tab
-  Widget _homeTab() {
+  Widget _homeTab(BuildContext context) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Column(
@@ -429,29 +408,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           _header(),
           _totalSalesCard(),
           _bestSellerCard(),
-          _activitySection(),
+          _activitySection(context),
           const SizedBox(height: 28),
         ],
       ),
     );
   }
 
-  Widget _placeholderTab(String label) {
-    return Center(
-      child: Text(
-        '$label\nComing soon',
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color:      _textMuted,
-          fontSize:   16,
-          fontWeight: FontWeight.w600,
-          height:     1.6,
-        ),
-      ),
-    );
-  }
-
-  //Bottom nav
   Widget _bottomNav() {
     const tabs = [
       (Icons.home_rounded,          'Home'),
@@ -487,26 +450,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        tabs[i].$1,
-                        color: selected
-                            ? Colors.white
-                            : Colors.white.withOpacity(0.5),
-                        size: 24,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        tabs[i].$2,
-                        style: TextStyle(
+                      Icon(tabs[i].$1,
                           color: selected
                               ? Colors.white
                               : Colors.white.withOpacity(0.5),
-                          fontSize:   10.5,
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ),
-                      ),
+                          size: 24),
+                      const SizedBox(height: 4),
+                      Text(tabs[i].$2,
+                          style: TextStyle(
+                              color: selected
+                                  ? Colors.white
+                                  : Colors.white.withOpacity(0.5),
+                              fontSize:   10.5,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500)),
                       const SizedBox(height: 4),
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 200),
@@ -528,23 +486,21 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
     );
   }
 
-  //Build
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
         backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(color: _brown),
-        ),
+        body:            Center(
+            child: CircularProgressIndicator(color: _brown)),
       );
     }
 
     final screens = [
-      _homeTab(),                       
-      _placeholderTab('Orders'),        
-      const StockScreen(),             
-      const InventoryScreen(),         
+      _homeTab(context),
+      const AdminOrdersScreen(),
+      const StockScreen(),
+      const InventoryScreen(),
     ];
 
     return Scaffold(
@@ -552,7 +508,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
-          index: _selectedTab,
+          index:    _selectedTab,
           children: screens,
         ),
       ),

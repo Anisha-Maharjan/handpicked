@@ -5,8 +5,11 @@ import 'package:handpicked/screens/login.dart';
 import 'package:handpicked/screens/settings.dart';
 import 'package:handpicked/screens/menu.dart';
 import 'package:handpicked/screens/ingredient.dart';
-import 'package:handpicked/screens/menu.dart';
-import 'package:handpicked/screens/ingredient.dart';
+import 'package:handpicked/screens/notifications_screen.dart';
+import 'package:handpicked/screens/cart_screen.dart';
+import 'package:handpicked/screens/your_orders_screen.dart';
+import 'package:handpicked/screens/edit_profile.dart';
+import 'package:handpicked/providers/cart_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -158,7 +161,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ProfilePage(username: username),
+            builder: (_) => const EditProfileScreen(),
           ),
         );
         break;
@@ -239,14 +242,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      _TopIcon(icon: Icons.shopping_cart_outlined, onTap: () {}),
+                      _CartBadgeIcon(),
                       const SizedBox(width: 10),
                       Stack(
                         clipBehavior: Clip.none,
                         children: [
                           _TopIcon(
                             icon: Icons.notifications_none_rounded,
-                            onTap: () {},
+                            onTap: () {
+                              Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsScreen()));
+                            },
                           ),
                           const Positioned(
                             right: 2,
@@ -505,10 +510,62 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: _BottomNavItem(icon: Icons.local_cafe_outlined, label: "Menu"),
               ),
-              _BottomNavItem(icon: Icons.receipt_long_outlined, label: "Your Order"),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const YourOrdersScreen()),
+                ),
+                child: _BottomNavItem(icon: Icons.receipt_long_outlined, label: "Your Order"),
+              ),
               _BottomNavItem(icon: Icons.favorite_border_rounded, label: "Favorites"),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// Cart icon with badge count
+class _CartBadgeIcon extends StatelessWidget {
+  const _CartBadgeIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    final cart = CartProviderWidget.of(context);
+    return InkWell(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CartScreen()),
+      ),
+      borderRadius: BorderRadius.circular(24),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(Icons.shopping_cart_outlined,
+                color: _HomeScreenState._dark, size: 22),
+            if (cart.totalCount > 0)
+              Positioned(
+                right: -4, top: -4,
+                child: Container(
+                  width:     16,
+                  height:    16,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                      color: _HomeScreenState._brown,
+                      shape: BoxShape.circle),
+                  child: Text(
+                    '${cart.totalCount}',
+                    style: const TextStyle(
+                        color:      Colors.white,
+                        fontSize:   9,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
