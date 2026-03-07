@@ -476,10 +476,13 @@ class _ProductTile extends StatelessWidget {
                 onTap: () {
                   final cart = CartProviderWidget.of(context);
                   cart.addItem(CartItem(
-                    docId:     docId,
-                    name:      name,
-                    unitPrice: price,
-                    imageUrl:  imageUrl,
+                    docId:       docId,
+                    name:        name,
+                    unitPrice:   price,
+                    imageUrl:    imageUrl,
+                    category:    isBakery ? 'bakery' : 'drink',
+                    productType: isBakery ? 'bakery' : 'drink',
+                    description: (data['description'] as String?),
                   ));
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:handpicked/providers/cart_provider.dart';
 
-const Color _cBrown     = Color(0xFF834D1E);
-const Color _cCream     = Color(0xFFF5EDD8);
-const Color _cTextDark  = Color(0xFF1E1E1E);
+const Color _cBrown = Color(0xFF834D1E);
+const Color _cCream = Color(0xFFF5EDD8);
+const Color _cTextDark = Color(0xFF1E1E1E);
 const Color _cTextMuted = Color(0xFF9B8165);
 
 class CartScreen extends StatefulWidget {
@@ -27,18 +27,21 @@ class _CartScreenState extends State<CartScreen> {
   Future<void> _placeOrder() async {
     setState(() => _placing = true);
     try {
-      final cart    = CartProviderWidget.of(context);
+      final cart = CartProviderWidget.of(context);
       final orderId = await cart.placeOrder();
       if (!mounted) return;
       setState(() => _checked.clear());
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Order $orderId placed successfully!',
-              style: const TextStyle(color: Colors.white)),
+          content: Text(
+            'Order $orderId placed successfully!',
+            style: const TextStyle(color: Colors.white),
+          ),
           backgroundColor: _cBrown,
-          behavior:        SnackBarBehavior.floating,
-          shape:           RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       Navigator.of(context).pop();
@@ -54,8 +57,10 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cart  = CartProviderWidget.of(context);
+    final cart = CartProviderWidget.of(context);
     final items = cart.items;
+
+    final num total = _checked.fold(0, (s, i) => s + items[i].total);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -68,92 +73,155 @@ class _CartScreenState extends State<CartScreen> {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_rounded,
-                        color: _cTextDark, size: 22),
+                    icon: const Icon(
+                      Icons.arrow_back_rounded,
+                      color: _cTextDark,
+                      size: 22,
+                    ),
                     splashRadius: 22,
-                    padding:     EdgeInsets.zero,
+                    padding: EdgeInsets.zero,
                   ),
                   const SizedBox(width: 4),
-                  const Text('My Cart',
-                      style: TextStyle(
-                          color:      _cTextDark,
-                          fontSize:   20,
-                          fontWeight: FontWeight.w800)),
+                  const Text(
+                    'My Cart',
+                    style: TextStyle(
+                      color: _cTextDark,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ],
               ),
             ),
-
             const SizedBox(height: 12),
-
             Expanded(
               child: items.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.shopping_cart_outlined,
-                              color: _cBrown.withOpacity(0.3), size: 64),
+                          Icon(
+                            Icons.shopping_cart_outlined,
+                            color: _cBrown.withOpacity(0.3),
+                            size: 64,
+                          ),
                           const SizedBox(height: 12),
-                          const Text('Your cart is empty',
-                              style: TextStyle(
-                                  color:    _cTextMuted,
-                                  fontSize: 15)),
+                          const Text(
+                            'Your cart is empty',
+                            style: TextStyle(
+                              color: _cTextMuted,
+                              fontSize: 15,
+                            ),
+                          ),
                         ],
                       ),
                     )
                   : ListView.separated(
-                      physics:  const BouncingScrollPhysics(),
-                      padding:  const EdgeInsets.fromLTRB(16, 4, 16, 8),
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
                       itemCount: items.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 10),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (ctx, i) {
                         final item = items[i];
                         return _CartTile(
-                          item:      item,
-                          checked:   _checked.contains(i),
-                          onCheck:   (v) => setState(() {
+                          item: item,
+                          checked: _checked.contains(i),
+                          onCheck: (v) => setState(() {
                             if (v == true) {
                               _checked.add(i);
                             } else {
                               _checked.remove(i);
                             }
                           }),
-                          onIncrement: () =>
-                              setState(() => cart.increment(i)),
-                          onDecrement: () =>
-                              setState(() => cart.decrement(i)),
+                          onIncrement: () => setState(() => cart.increment(i)),
+                          onDecrement: () => setState(() => cart.decrement(i)),
+                          onDelete: () {
+                            setState(() {
+                              cart.remove(i);
+                              final shifted = _checked
+                                  .where((idx) => idx > i)
+                                  .map((idx) => idx - 1)
+                                  .toSet();
+                              _checked.removeWhere((idx) => idx >= i);
+                              _checked.addAll(shifted);
+                            });
+                          },
                         );
                       },
                     ),
             ),
-
             if (items.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                child: GestureDetector(
-                  onTap: _placing ? null : _placeOrder,
-                  child: Container(
-                    height:     54,
-                    alignment:  Alignment.center,
-                    decoration: BoxDecoration(
-                      color:        _cBrown,
-                      borderRadius: BorderRadius.circular(28),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _cCream,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFFE8D5BC),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            _checked.isEmpty
+                                ? 'Total (select items above)'
+                                : 'Total (${_checked.length} selected)',
+                            style: const TextStyle(
+                              color: _cTextMuted,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            'Rs. ${total.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: _cBrown,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: _placing
-                        ? const SizedBox(
-                            width:  22,
-                            height: 22,
-                            child:  CircularProgressIndicator(
-                                color:       Colors.white,
-                                strokeWidth: 2.5),
-                          )
-                        : const Text('Place Order',
-                            style: TextStyle(
-                                color:      Colors.white,
-                                fontSize:   16,
-                                fontWeight: FontWeight.w700)),
-                  ),
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: _placing ? null : _placeOrder,
+                      child: Container(
+                        height: 54,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: _cBrown,
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                        child: _placing
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2.5,
+                                ),
+                              )
+                            : const Text(
+                                'Place Order',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -164,11 +232,12 @@ class _CartScreenState extends State<CartScreen> {
 }
 
 class _CartTile extends StatelessWidget {
-  final CartItem     item;
-  final bool         checked;
+  final CartItem item;
+  final bool checked;
   final ValueChanged<bool?> onCheck;
   final VoidCallback onIncrement;
   final VoidCallback onDecrement;
+  final VoidCallback onDelete;
 
   const _CartTile({
     required this.item,
@@ -176,102 +245,138 @@ class _CartTile extends StatelessWidget {
     required this.onCheck,
     required this.onIncrement,
     required this.onDecrement,
+    required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding:    const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color:        _cCream,
+        color: _cCream,
         borderRadius: BorderRadius.circular(16),
-        border:       Border.all(color: const Color(0xFFE8D5BC), width: 1),
+        border: Border.all(
+          color: const Color(0xFFE8D5BC),
+          width: 1,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           SizedBox(
-            width:  24,
+            width: 24,
             height: 24,
-            child:  Checkbox(
-              value:           checked,
-              onChanged:       onCheck,
-              activeColor:     _cBrown,
-              shape:           RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(5)),
-              side:            BorderSide(
-                  color: _cBrown.withOpacity(0.4), width: 1.5),
+            child: Checkbox(
+              value: checked,
+              onChanged: onCheck,
+              activeColor: _cBrown,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(5),
+              ),
+              side: BorderSide(
+                color: _cBrown.withOpacity(0.4),
+                width: 1.5,
+              ),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,
             ),
           ),
           const SizedBox(width: 10),
-
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: SizedBox(
-              width:  56,
+              width: 56,
               height: 56,
               child: item.imageUrl != null && item.imageUrl!.isNotEmpty
-                  ? Image.network(item.imageUrl!,
+                  ? Image.network(
+                      item.imageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholder())
+                      errorBuilder: (_, __, ___) => _placeholder(),
+                    )
                   : _placeholder(),
             ),
           ),
           const SizedBox(width: 12),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(item.name,
-                    style: const TextStyle(
-                        color:      _cTextDark,
-                        fontSize:   14,
-                        fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                GestureDetector(
-                  onTap: () {},
-                  child: const Text('Details',
-                      style: TextStyle(
-                          color:      _cBrown,
-                          fontSize:   12,
-                          fontWeight: FontWeight.w600,
-                          decoration: TextDecoration.underline,
-                          decorationColor: _cBrown)),
+                Text(
+                  item.name,
+                  style: const TextStyle(
+                    color: _cTextDark,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  'Rs. ${item.unitPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    color: _cTextMuted,
+                    fontSize: 12,
+                  ),
+                ),
+                if (item.description != null && item.description!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.description!,
+                    style: const TextStyle(
+                      color: _cTextMuted,
+                      fontSize: 11,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
-
           Row(
             children: [
               GestureDetector(
                 onTap: onIncrement,
-                child: const Text('+',
-                    style: TextStyle(
-                        color:      _cTextDark,
-                        fontSize:   18,
-                        fontWeight: FontWeight.w600)),
+                child: const Text(
+                  '+',
+                  style: TextStyle(
+                    color: _cTextDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Text('${item.quantity}',
-                    style: const TextStyle(
-                        color:      _cTextDark,
-                        fontSize:   14,
-                        fontWeight: FontWeight.w700)),
+                child: Text(
+                  '${item.quantity}',
+                  style: const TextStyle(
+                    color: _cTextDark,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
               GestureDetector(
                 onTap: onDecrement,
-                child: const Text('−',
-                    style: TextStyle(
-                        color:      _cTextDark,
-                        fontSize:   18,
-                        fontWeight: FontWeight.w600)),
+                child: const Text(
+                  '−',
+                  style: TextStyle(
+                    color: _cTextDark,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
+          ),
+          const SizedBox(width: 8),
+          GestureDetector(
+            onTap: onDelete,
+            child: Icon(
+              Icons.delete_outline_rounded,
+              color: _cBrown.withOpacity(0.7),
+              size: 20,
+            ),
           ),
         ],
       ),
@@ -281,8 +386,11 @@ class _CartTile extends StatelessWidget {
   Widget _placeholder() => Container(
         color: const Color(0xFFEDD9BB),
         child: Center(
-          child: Icon(Icons.local_cafe_rounded,
-              color: _cBrown.withOpacity(0.3), size: 22),
+          child: Icon(
+            Icons.local_cafe_rounded,
+            color: _cBrown.withOpacity(0.3),
+            size: 22,
+          ),
         ),
       );
 }

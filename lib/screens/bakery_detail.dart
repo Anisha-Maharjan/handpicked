@@ -41,11 +41,13 @@ class _BakeryDetailScreenState extends State<BakeryDetailScreen> {
   void _addToCart(Map<String, dynamic> data) {
     final cart = CartProviderWidget.of(context);
     cart.addItem(CartItem(
-      docId:     widget.docId,
-      name:      (data['name']     as String?) ?? 'Unknown',
-      unitPrice: (data['price']    as num?)    ?? 0,
-      imageUrl:  (data['imageURL'] as String?),
-      quantity:  _quantity,
+      docId:       widget.docId,
+      name:        (data['name']        as String?) ?? 'Unknown',
+      unitPrice:   (data['price']       as num?)    ?? 0,
+      imageUrl:    (data['imageUrl'] as String?) ?? (data['imageURL'] as String?),
+      category:    'bakery',
+      description: (data['description'] as String?),
+      quantity:    _quantity,
     ));
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -64,12 +66,14 @@ class _BakeryDetailScreenState extends State<BakeryDetailScreen> {
   Future<void> _buyNow(Map<String, dynamic> data) async {
     final cart = CartProviderWidget.of(context);
     cart.addItem(CartItem(
-      docId:     widget.docId,
-      name:      (data['name']     as String?) ?? 'Unknown',
-      unitPrice: (data['price']    as num?)    ?? 0,
-      imageUrl:  (data['imageURL'] as String?),
-      quantity:  _quantity,
-    ));
+  docId:       widget.docId,
+  name:        (data['name']        as String?) ?? 'Unknown',
+  unitPrice:   (data['price']       as num?)    ?? 0,
+  imageUrl:    (data['imageUrl'] as String?) ?? (data['imageURL'] as String?),
+  category:        'bakery',
+  description: (data['description'] as String?),
+  quantity:    _quantity,
+));
     Navigator.of(context).pop();
     try {
       final orderId = await cart.placeOrder();
@@ -96,7 +100,7 @@ class _BakeryDetailScreenState extends State<BakeryDetailScreen> {
   Widget build(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
-          .collection('ProductID')
+          .collection('productID')
           .doc(widget.docId)
           .snapshots(),
       builder: (ctx, snap) {
@@ -107,7 +111,7 @@ class _BakeryDetailScreenState extends State<BakeryDetailScreen> {
         final String  name        = (data['name']        as String?) ?? 'Unknown';
         final String  description = (data['description'] as String?) ?? '';
         final num     price       = (data['price']       as num?)    ?? 0;
-        final String? imageUrl    = (data['imageURL']    as String?);
+        final String? imageUrl    = (data['imageUrl'] as String?) ?? (data['imageURL'] as String?);
 
         return DraggableScrollableSheet(
           initialChildSize: 0.92,

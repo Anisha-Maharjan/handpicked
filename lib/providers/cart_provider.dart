@@ -3,14 +3,20 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class CartItem {
-  final String  docId;
-  final String  name;
-  final num     unitPrice;
+  final String docId;
+  final String name;
+  final num unitPrice;
   final String? imageUrl;
   final String? milkType;
   final String? sweetenerType;
   final List<String> extras;
   final String? specialInstruction;
+
+  /// keep both for compatibility
+  final String category; // drink / bakery
+  final String productType; // drink / bakery
+
+  final String? description;
   int quantity;
 
   CartItem({
@@ -22,34 +28,52 @@ class CartItem {
     this.sweetenerType,
     this.extras = const [],
     this.specialInstruction,
+    this.category = 'drink',
+    String? productType,
+    this.description,
     this.quantity = 1,
-  });
+  }) : productType = productType ?? category;
 
   num get total => unitPrice * quantity;
 
   Map<String, dynamic> toMap() => {
-    'docId':              docId,
-    'name':               name,
-    'unitPrice':          unitPrice,
-    'imageUrl':           imageUrl,
-    'milkType':           milkType,
-    'sweetenerType':      sweetenerType,
-    'extras':             extras,
-    'specialInstruction': specialInstruction,
-    'quantity':           quantity,
-  };
+        'docId': docId,
+        'name': name,
+        'unitPrice': unitPrice,
+        'imageUrl': imageUrl,
+        'milkType': milkType,
+        'sweetenerType': sweetenerType,
+        'extras': extras,
+        'specialInstruction': specialInstruction,
+        'category': category,
+        'productType': productType,
+        'type': category,          // match Firestore field name
+        'description': description,
+        'quantity': quantity,
+      };
 
-  factory CartItem.fromMap(Map<String, dynamic> m) => CartItem(
-    docId:              (m['docId']         as String?) ?? '',
-    name:               (m['name']          as String?) ?? '',
-    unitPrice:          (m['unitPrice']      as num?)   ?? 0,
-    imageUrl:           m['imageUrl']        as String?,
-    milkType:           m['milkType']        as String?,
-    sweetenerType:      m['sweetenerType']   as String?,
-    extras:             List<String>.from(m['extras'] ?? []),
-    specialInstruction: m['specialInstruction'] as String?,
-    quantity:           (m['quantity']       as int?)   ?? 1,
-  );
+  factory CartItem.fromMap(Map<String, dynamic> m) {
+    final resolvedType =
+        (m['productType'] as String?) ??
+        (m['category'] as String?) ??
+        (m['type'] as String?) ??
+        'drink';
+
+    return CartItem(
+      docId: (m['docId'] as String?) ?? '',
+      name: (m['name'] as String?) ?? '',
+      unitPrice: (m['unitPrice'] as num?) ?? (m['price'] as num?) ?? 0,
+      imageUrl: m['imageUrl'] as String?,
+      milkType: m['milkType'] as String?,
+      sweetenerType: m['sweetenerType'] as String?,
+      extras: List<String>.from(m['extras'] ?? []),
+      specialInstruction: m['specialInstruction'] as String?,
+      category: resolvedType,
+      productType: resolvedType,
+      description: m['description'] as String?,
+      quantity: (m['quantity'] as int?) ?? 1,
+    );
+  }
 }
 
 class CartProvider extends ChangeNotifier {
@@ -64,9 +88,14 @@ class CartProvider extends ChangeNotifier {
   int get totalCount => _items.fold(0, (s, i) => s + i.quantity);
 
   void addItem(CartItem item) {
-    final idx = _items.indexWhere((e) => e.docId == item.docId &&
-        e.milkType == item.milkType &&
-        e.sweetenerType == item.sweetenerType);
+    final idx = _items.indexWhere(
+      (e) =>
+          e.docId == item.docId &&
+          e.milkType == item.milkType &&
+          e.sweetenerType == item.sweetenerType &&
+          e.category == item.category,
+    );
+
     if (idx >= 0) {
       _items[idx].quantity += item.quantity;
     } else {
@@ -108,14 +137,18 @@ class CartProvider extends ChangeNotifier {
         .collection('users')
         .doc(user.uid)
         .get();
-    final userData   = userDoc.data() ?? {};
-    final customerName = (userData['username'] ?? userData['name'] ?? 'Customer').toString();
+
+    final userData = userDoc.data() ?? {};
+    final customerName =
+        (userData['username'] ?? userData['name'] ?? 'Customer').toString();
 
     final counter = await FirebaseFirestore.instance
         .collection('meta')
         .doc('orderCounter')
         .get();
-    int nextNum = ((counter.data()?['count'] as int?) ?? 100) + 1;
+
+    final int nextNum = ((counter.data()?['count'] as int?) ?? 100) + 1;
+
     await FirebaseFirestore.instance
         .collection('meta')
         .doc('orderCounter')
@@ -125,25 +158,25 @@ class CartProvider extends ChangeNotifier {
 
     final orderRef = FirebaseFirestore.instance.collection('orders').doc(orderId);
     await orderRef.set({
-      'orderId':      orderId,
-      'customerId':   user.uid,
+      'orderId': orderId,
+      'customerId': user.uid,
       'customerName': customerName,
-      'items':        _items.map((e) => e.toMap()).toList(),
-      'total':        subtotal,
-      'status':       'incoming',
-      'createdAt':    FieldValue.serverTimestamp(),
+      'items': _items.map((e) => e.toMap()).toList(),
+      'total': subtotal,
+      'status': 'incoming',
+      'createdAt': FieldValue.serverTimestamp(),
     });
 
     await _addNotification(
-      userId:  user.uid,
+      userId: user.uid,
       message: 'Your order $orderId has been placed.',
-      type:    'order_placed',
+      type: 'order_placed',
       orderId: orderId,
     );
 
     await _addAdminNotification(
       message: 'New order $orderId has been placed.',
-      type:    'new_order',
+      type: 'new_order',
       orderId: orderId,
     );
 
@@ -162,10 +195,10 @@ class CartProvider extends ChangeNotifier {
         .doc(userId)
         .collection('items')
         .add({
-      'message':   message,
-      'type':      type,
-      'orderId':   orderId,
-      'read':      false,
+      'message': message,
+      'type': type,
+      'orderId': orderId,
+      'read': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -175,13 +208,11 @@ class CartProvider extends ChangeNotifier {
     required String type,
     required String orderId,
   }) async {
-    await FirebaseFirestore.instance
-        .collection('adminNotifications')
-        .add({
-      'message':   message,
-      'type':      type,
-      'orderId':   orderId,
-      'read':      false,
+    await FirebaseFirestore.instance.collection('adminNotifications').add({
+      'message': message,
+      'type': type,
+      'orderId': orderId,
+      'read': false,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
@@ -191,9 +222,9 @@ class CartProvider extends ChangeNotifier {
     required String orderId,
   }) async {
     await _addNotification(
-      userId:  customerId,
+      userId: customerId,
       message: 'Your order $orderId is ready to pick up!',
-      type:    'order_ready',
+      type: 'order_ready',
       orderId: orderId,
     );
   }
