@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:handpicked/services/notification_service.dart';
 
 class CartItem {
   final String docId;
@@ -47,7 +48,7 @@ class CartItem {
         'specialInstruction': specialInstruction,
         'category': category,
         'productType': productType,
-        'type': category,          // match Firestore field name
+        'type': category,
         'description': description,
         'quantity': quantity,
       };
@@ -128,35 +129,30 @@ class CartProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Places the order in Firestore and fires local notifications for both
+  /// the customer (notification 1) and the admin (notification 10).
   Future<String> placeOrder() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('Not logged in');
     if (_items.isEmpty) throw Exception('Cart is empty');
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
+    final db = FirebaseFirestore.instance;
 
+    final userDoc = await db.collection('users').doc(user.uid).get();
     final userData = userDoc.data() ?? {};
+
     final customerName =
         (userData['username'] ?? userData['name'] ?? 'Customer').toString();
 
-    final counter = await FirebaseFirestore.instance
-        .collection('meta')
-        .doc('orderCounter')
-        .get();
+    final counterRef = db.collection('meta').doc('orderCounter');
+    final counterSnap = await counterRef.get();
+    final int nextNum = ((counterSnap.data()?['count'] as int?) ?? 100) + 1;
 
-    final int nextNum = ((counter.data()?['count'] as int?) ?? 100) + 1;
-
-    await FirebaseFirestore.instance
-        .collection('meta')
-        .doc('orderCounter')
-        .set({'count': nextNum});
+    await counterRef.set({'count': nextNum});
 
     final orderId = 'ORD-$nextNum';
+    final orderRef = db.collection('orders').doc(orderId);
 
-    final orderRef = FirebaseFirestore.instance.collection('orders').doc(orderId);
     await orderRef.set({
       'orderId': orderId,
       'customerId': user.uid,
@@ -167,66 +163,14 @@ class CartProvider extends ChangeNotifier {
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    await _addNotification(
-      userId: user.uid,
-      message: 'Your order $orderId has been placed.',
-      type: 'order_placed',
-      orderId: orderId,
-    );
+    // Customer notification: "Your order {orderId} has been placed."
+    await NotificationService.instance.notifyCustomerOrderPlaced(orderId, user.uid);
 
-    await _addAdminNotification(
-      message: 'New order $orderId has been placed.',
-      type: 'new_order',
-      orderId: orderId,
-    );
+    // Admin notification: "The order {orderId} has been placed."
+    await NotificationService.instance.notifyAdminNewOrder(orderId);
 
     clear();
     return orderId;
-  }
-
-  static Future<void> _addNotification({
-    required String userId,
-    required String message,
-    required String type,
-    required String orderId,
-  }) async {
-    await FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(userId)
-        .collection('items')
-        .add({
-      'message': message,
-      'type': type,
-      'orderId': orderId,
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  static Future<void> _addAdminNotification({
-    required String message,
-    required String type,
-    required String orderId,
-  }) async {
-    await FirebaseFirestore.instance.collection('adminNotifications').add({
-      'message': message,
-      'type': type,
-      'orderId': orderId,
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  static Future<void> notifyCustomerOrderReady({
-    required String customerId,
-    required String orderId,
-  }) async {
-    await _addNotification(
-      userId: customerId,
-      message: 'Your order $orderId is ready to pick up!',
-      type: 'order_ready',
-      orderId: orderId,
-    );
   }
 }
 

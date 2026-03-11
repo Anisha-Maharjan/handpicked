@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:handpicked/services/cloudinary_upload.dart';
+import 'package:handpicked/services/notification_service.dart';
 
 //Palette 
 const Color _brown      = Color(0xFF7B4A1E);
@@ -314,9 +315,10 @@ class _StockScreenState extends State<StockScreen> {
                 final current = num.tryParse(currentCtrl.text.trim()) ?? max;
                 final percent = _amountToPercent(current, maxAmount: max);
                 final status  = _statusFromPercent(percent);
+                final String ingredName = nameCtrl.text.trim();
                 Navigator.pop(ctx);
                 await FirebaseFirestore.instance.collection('Ingredients').add({
-                  'name':          nameCtrl.text.trim(),
+                  'name':          ingredName,
                   'description':   descCtrl.text.trim(),
                   'imageURL':      uploadedUrl ?? '',
                   'url':           urlCtrl.text.trim(),
@@ -326,6 +328,11 @@ class _StockScreenState extends State<StockScreen> {
                   'status':        status,
                   'updatedAt':     FieldValue.serverTimestamp(),
                 });
+                // Notification 20 - admin: ingredient added at critical level
+                if (status == 'critical') {
+                  await NotificationService.instance
+                      .notifyAdminStockCritical(ingredName);
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: _brown,
@@ -638,6 +645,7 @@ class _StockScreenState extends State<StockScreen> {
     final String? docId   = data['_docId'] as String?;
     if (docId == null) return;
 
+    final String ingredientName = (data['name'] as String?) ?? 'Unknown';
     final num current = (data['currentAmount'] ?? data['Amount'] ?? 0) as num;
     final num max     = (data['Amount'] ?? 100) as num;
     final num updated = (current + addAmount).clamp(0, max);
@@ -652,6 +660,12 @@ class _StockScreenState extends State<StockScreen> {
       'status':        newStatus,
       'updatedAt':     FieldValue.serverTimestamp(),
     });
+
+    // Notification 20 - admin: ingredient is critically low
+    if (newStatus == 'critical') {
+      await NotificationService.instance
+          .notifyAdminStockCritical(ingredientName);
+    }
   }
 
   //Build 

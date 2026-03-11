@@ -8,8 +8,10 @@ import 'package:handpicked/screens/ingredient.dart';
 import 'package:handpicked/screens/notifications_screen.dart';
 import 'package:handpicked/screens/cart_screen.dart';
 import 'package:handpicked/screens/your_orders_screen.dart';
+import 'package:handpicked/screens/favourite_screen.dart';
 import 'package:handpicked/screens/edit_profile.dart';
 import 'package:handpicked/providers/cart_provider.dart';
+import 'package:handpicked/services/notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,6 +25,13 @@ class _HomeScreenState extends State<HomeScreen> {
   static const Color _dark = Color(0xFF1E1E1E);
 
   final GlobalKey _menuKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialise local notifications and request OS permission
+    NotificationService.instance.init();
+  }
 
   Future<String> getUserUsername(String uid) async {
     final doc =
@@ -517,7 +526,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 child: _BottomNavItem(icon: Icons.receipt_long_outlined, label: "Your Order"),
               ),
-              _BottomNavItem(icon: Icons.favorite_border_rounded, label: "Favorites"),
+              GestureDetector(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const FavouritesScreen()),
+                ),
+                child: _BottomNavItem(icon: Icons.favorite_border_rounded, label: "Favorites"),
+              ),
             ],
           ),
         ),

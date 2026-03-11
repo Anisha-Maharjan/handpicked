@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:handpicked/providers/cart_provider.dart';
+import 'package:handpicked/providers/favourites_provider.dart';
 
 const Color _bkBrown     = Color(0xFF834D1E);
 const Color _bkCream     = Color(0xFFF5EDD8);
@@ -37,6 +38,12 @@ class BakeryDetailScreen extends StatefulWidget {
 class _BakeryDetailScreenState extends State<BakeryDetailScreen> {
   int  _quantity    = 1;
   bool _isFavourite = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isFavourite = FavouritesProviderWidget.of(context).isFavourite(widget.docId);
+  }
 
   void _addToCart(Map<String, dynamic> data) {
     final cart = CartProviderWidget.of(context);
@@ -165,8 +172,18 @@ class _BakeryDetailScreenState extends State<BakeryDetailScreen> {
                                 top:   16,
                                 right: 16,
                                 child: GestureDetector(
-                                  onTap: () => setState(
-                                      () => _isFavourite = !_isFavourite),
+                                  onTap: () {
+                                    final favs = FavouritesProviderWidget.of(context);
+                                    final imageUrl = (data['imageUrl'] as String?) ?? (data['imageURL'] as String?);
+                                    favs.toggle(FavouriteItem(
+                                      docId:    widget.docId,
+                                      name:     (data['name'] as String?) ?? 'Unknown',
+                                      price:    (data['price'] as num?) ?? 0,
+                                      imageUrl: imageUrl,
+                                      category: 'bakery',
+                                    ));
+                                    setState(() => _isFavourite = !_isFavourite);
+                                  },
                                   child: Container(
                                     width:  40,
                                     height: 40,

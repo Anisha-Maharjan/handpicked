@@ -1,10 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:handpicked/services/notification_service.dart';
 
-const Color _aBrown     = Color(0xFF7B4A1E);
-const Color _aCream     = Color(0xFFF5EDD8);
+const Color _aBrown = Color(0xFF7B4A1E);
+const Color _aCream = Color(0xFFF5EDD8);
 const Color _aCardCream = Color(0xFFF9F3E8);
-const Color _aTextDark  = Color(0xFF3B2005);
+const Color _aTextDark = Color(0xFF3B2005);
 const Color _aTextMuted = Color(0xFF9B8165);
 
 class AdminOrdersScreen extends StatefulWidget {
@@ -24,80 +25,47 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         .snapshots();
   }
 
-  Stream<QuerySnapshot> get _historyStream =>
-      FirebaseFirestore.instance
-          .collection('orders')
-          .where('status', isEqualTo: 'completed')
-          .snapshots();
+  /// History tab shows orders with status 'ready' – admin clicks Complete here.
+  Stream<QuerySnapshot> get _historyStream => FirebaseFirestore.instance
+      .collection('orders')
+      .where('status', isEqualTo: 'ready')
+      .snapshots();
 
+  /// Called when admin taps Start, Ready, or Complete.
+  ///
+  /// Status flow:  incoming → active → ready → completed
+  ///
+  /// Local notifications fired per transition:
+  ///   active     → Customer: "Your order {id} is being prepared."        (notif 2)
+  ///   ready      → Customer: "Your order {id} is ready to pick up."      (notif 3)
+  ///   completed  → Customer: "Your order {id} is complete."              (notif 4)
+  ///              → Admin:    "The order {id} is complete."               (notif 11)
   Future<void> _updateStatus(
     String orderId,
     String newStatus,
     String customerId,
   ) async {
-    await FirebaseFirestore.instance
-        .collection('orders')
-        .doc(orderId)
-        .update({'status': newStatus});
+    final docRef = FirebaseFirestore.instance.collection('orders').doc(orderId);
+
+    await docRef.update({
+      'status': newStatus,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final ns = NotificationService.instance;
 
     if (newStatus == 'active') {
-      await _addCustomerNotif(
-        customerId: customerId,
-        message: 'Your order $orderId has been confirmed.',
-        type: 'order_confirmed',
-        orderId: orderId,
-      );
-      await _addAdminNotif(
-        'Order $orderId has been started.',
-        'order_started',
-        orderId,
-      );
+      // Notification 2 – customer: order being prepared
+      await ns.notifyCustomerOrderStarted(orderId, customerId);
+    } else if (newStatus == 'ready') {
+      // Notification 3 – customer: order ready for pickup
+      await ns.notifyCustomerOrderReady(orderId, customerId);
     } else if (newStatus == 'completed') {
-      await _addCustomerNotif(
-        customerId: customerId,
-        message: 'Your order $orderId is ready to pick up.',
-        type: 'order_ready',
-        orderId: orderId,
-      );
-      await _addAdminNotif(
-        'Order $orderId has been completed.',
-        'order_completed',
-        orderId,
-      );
+      // Notification 4 – customer: order complete
+      await ns.notifyCustomerOrderComplete(orderId, customerId);
+      // Notification 11 – admin: order complete
+      await ns.notifyAdminOrderComplete(orderId);
     }
-  }
-
-  Future<void> _addCustomerNotif({
-    required String customerId,
-    required String message,
-    required String type,
-    required String orderId,
-  }) async {
-    await FirebaseFirestore.instance
-        .collection('notifications')
-        .doc(customerId)
-        .collection('items')
-        .add({
-      'message': message,
-      'type': type,
-      'orderId': orderId,
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
-  Future<void> _addAdminNotif(
-    String message,
-    String type,
-    String orderId,
-  ) async {
-    await FirebaseFirestore.instance.collection('adminNotifications').add({
-      'message': message,
-      'type': type,
-      'orderId': orderId,
-      'read': false,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
   }
 
   @override
@@ -132,21 +100,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                   selected: _tab == 0,
                   onTap: () => setState(() => _tab = 0),
                 ),
-                Container(
-                  width: 1,
-                  height: 20,
-                  color: _aBrown.withOpacity(0.2),
-                ),
+                Container(width: 1, height: 20, color: _aBrown.withOpacity(0.2)),
                 _TabBtn(
                   label: 'Active',
                   selected: _tab == 1,
                   onTap: () => setState(() => _tab = 1),
                 ),
-                Container(
-                  width: 1,
-                  height: 20,
-                  color: _aBrown.withOpacity(0.2),
-                ),
+                Container(width: 1, height: 20, color: _aBrown.withOpacity(0.2)),
                 _TabBtn(
                   label: 'History',
                   selected: _tab == 2,
@@ -177,9 +137,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       stream: _ordersStream(status),
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: _aBrown),
-          );
+          return const Center(child: CircularProgressIndicator(color: _aBrown));
         }
 
         final docs = snap.data?.docs ?? [];
@@ -187,21 +145,17 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           return Center(
             child: Text(
               'No $status orders.',
-              style: const TextStyle(
-                color: _aTextMuted,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: _aTextMuted, fontSize: 14),
             ),
           );
         }
 
-        final sorted = [...docs];
-        sorted.sort((a, b) {
-          final aT = (a.data() as Map)['createdAt'] as Timestamp?;
-          final bT = (b.data() as Map)['createdAt'] as Timestamp?;
-          if (aT == null || bT == null) return 0;
-          return bT.compareTo(aT);
-        });
+        final sorted = [...docs]..sort((a, b) {
+            final aT = (a.data() as Map)['createdAt'] as Timestamp?;
+            final bT = (b.data() as Map)['createdAt'] as Timestamp?;
+            if (aT == null || bT == null) return 0;
+            return bT.compareTo(aT);
+          });
 
         return ListView.separated(
           physics: const BouncingScrollPhysics(),
@@ -225,7 +179,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               canReady: canReady,
               createdAt: data['createdAt'] as Timestamp?,
               onAction: () {
-                final next = canStart ? 'active' : 'completed';
+                final next = canStart ? 'active' : 'ready';
                 _updateStatus(orderId, next, customerId);
               },
               onTapDetail: () => _showItemDetail(
@@ -251,9 +205,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       stream: _historyStream,
       builder: (ctx, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: _aBrown),
-          );
+          return const Center(child: CircularProgressIndicator(color: _aBrown));
         }
 
         final hdocs = snap.data?.docs ?? [];
@@ -266,13 +218,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           );
         }
 
-        final sorted = [...hdocs];
-        sorted.sort((a, b) {
-          final aT = (a.data() as Map)['createdAt'] as Timestamp?;
-          final bT = (b.data() as Map)['createdAt'] as Timestamp?;
-          if (aT == null || bT == null) return 0;
-          return bT.compareTo(aT);
-        });
+        final sorted = [...hdocs]..sort((a, b) {
+            final aT = (a.data() as Map)['createdAt'] as Timestamp?;
+            final bT = (b.data() as Map)['createdAt'] as Timestamp?;
+            if (aT == null || bT == null) return 0;
+            return bT.compareTo(aT);
+          });
 
         return ListView.separated(
           physics: const BouncingScrollPhysics(),
@@ -285,6 +236,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             final custName = (data['customerName'] as String?) ?? 'Customer';
             final items = (data['items'] as List?) ?? [];
             final total = (data['total'] as num?) ?? 0;
+            final customerId = (data['customerId'] as String?) ?? '';
 
             return _AdminOrderCard(
               orderId: orderId,
@@ -293,6 +245,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               total: total,
               isHistory: true,
               createdAt: data['createdAt'] as Timestamp?,
+              // Complete button → triggers notif 4 (customer) + notif 11 (admin)
+              onAction: () => _updateStatus(orderId, 'completed', customerId),
               onTapDetail: () => _showItemDetail(
                 context,
                 orderId,
@@ -301,7 +255,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 total,
                 createdAt: data['createdAt'] as Timestamp?,
                 isHistory: true,
-                customerId: '',
+                customerId: customerId,
               ),
             );
           },
@@ -335,17 +289,18 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         canStart: canStart,
         canReady: canReady,
         isHistory: isHistory,
-        onAction: isHistory
-            ? null
-            : () {
-                final next = canStart ? 'active' : 'completed';
-                _updateStatus(orderId, next, customerId);
-                Navigator.of(context).pop();
-              },
+        onAction: () {
+          final next =
+              isHistory ? 'completed' : (canStart ? 'active' : 'ready');
+          _updateStatus(orderId, next, customerId);
+          Navigator.of(context).pop();
+        },
       ),
     );
   }
 }
+
+// ── Cards & Sheets (unchanged UI, kept intact) ────────────────────────────────
 
 class _AdminOrderCard extends StatelessWidget {
   final String orderId;
@@ -398,42 +353,31 @@ class _AdminOrderCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: _aCardCream,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE8D5BC),
-            width: 1,
-          ),
+          border: Border.all(color: const Color(0xFFE8D5BC), width: 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.receipt_long_outlined,
-                  color: _aBrown,
-                  size: 18,
-                ),
+                const Icon(Icons.receipt_long_outlined,
+                    color: _aBrown, size: 18),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        custName,
-                        style: const TextStyle(
-                          color: _aTextDark,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      Text(custName,
+                          style: const TextStyle(
+                              color: _aTextDark,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700)),
                       Text(
                         isHistory
                             ? 'Order has been completed $orderId.'
                             : 'New order has been placed $orderId.',
                         style: const TextStyle(
-                          color: _aTextMuted,
-                          fontSize: 11.5,
-                        ),
+                            color: _aTextMuted, fontSize: 11.5),
                       ),
                     ],
                   ),
@@ -441,21 +385,16 @@ class _AdminOrderCard extends StatelessWidget {
                 if (createdAt != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                        horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: _aBrown.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Text(
-                      _fmtDate(createdAt!),
-                      style: const TextStyle(
-                        color: _aBrown,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(_fmtDate(createdAt!),
+                        style: const TextStyle(
+                            color: _aBrown,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
                   ),
               ],
             ),
@@ -463,10 +402,7 @@ class _AdminOrderCard extends StatelessWidget {
             Text(
               '${items.length} item${items.length == 1 ? '' : 's'}'
               '${createdAt != null ? '  ·  ${_fmtTime(createdAt!)}' : ''}',
-              style: const TextStyle(
-                color: _aTextMuted,
-                fontSize: 11.5,
-              ),
+              style: const TextStyle(color: _aTextMuted, fontSize: 11.5),
             ),
             const SizedBox(height: 10),
             ...items.take(3).map((item) {
@@ -480,25 +416,17 @@ class _AdminOrderCard extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      '${qty}x $name',
-                      style: const TextStyle(
-                        color: _aTextDark,
-                        fontSize: 13,
-                      ),
-                    ),
-                    Text(
-                      'Rs. ${(up * qty).toStringAsFixed(0)}',
-                      style: const TextStyle(
-                        color: _aTextDark,
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text('${qty}x $name',
+                        style: const TextStyle(
+                            color: _aTextDark, fontSize: 13)),
+                    Text('Rs. ${(up * qty).toStringAsFixed(0)}',
+                        style: const TextStyle(
+                            color: _aTextDark, fontSize: 13)),
                   ],
                 ),
               );
             }),
-            if (!isHistory && onAction != null) ...[
+            if (onAction != null) ...[
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerRight,
@@ -506,9 +434,7 @@ class _AdminOrderCard extends StatelessWidget {
                   onTap: onAction,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 7,
-                    ),
+                        horizontal: 18, vertical: 7),
                     decoration: BoxDecoration(
                       color: _aBrown,
                       borderRadius: BorderRadius.circular(20),
@@ -517,19 +443,17 @@ class _AdminOrderCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          canStart ? 'Start' : 'Ready',
+                          isHistory
+                              ? 'Complete'
+                              : (canStart ? 'Start' : 'Ready'),
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                          size: 14,
-                        ),
+                        const Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: 14),
                       ],
                     ),
                   ),
@@ -604,28 +528,18 @@ class _ItemDetailSheet extends StatelessWidget {
           Text(
             '$orderId  $custName',
             style: const TextStyle(
-              color: _aBrown,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
+                color: _aBrown, fontSize: 16, fontWeight: FontWeight.w800),
           ),
           if (createdAt != null) ...[
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(
-                  Icons.access_time_rounded,
-                  color: _aTextMuted,
-                  size: 13,
-                ),
+                const Icon(Icons.access_time_rounded,
+                    color: _aTextMuted, size: 13),
                 const SizedBox(width: 4),
-                Text(
-                  _fmtDateTime(createdAt!),
-                  style: const TextStyle(
-                    color: _aTextMuted,
-                    fontSize: 12,
-                  ),
-                ),
+                Text(_fmtDateTime(createdAt!),
+                    style: const TextStyle(
+                        color: _aTextMuted, fontSize: 12)),
               ],
             ),
           ],
@@ -643,12 +557,11 @@ class _ItemDetailSheet extends StatelessWidget {
             final special = (m['specialInstruction'] as String?);
             final imageUrl = (m['imageUrl'] as String?);
 
-            bool _isBakeryStr(String? s) =>
+            bool isBakeryStr(String? s) =>
                 s != null && s.trim().toLowerCase().contains('bakery');
-            final bool isBakery =
-                _isBakeryStr(productType) ||
-                _isBakeryStr(type) ||
-                _isBakeryStr(category);
+            final bool isBakery = isBakeryStr(productType) ||
+                isBakeryStr(type) ||
+                isBakeryStr(category);
             final bool isDrink = !isBakery;
 
             return Container(
@@ -657,10 +570,8 @@ class _ItemDetailSheet extends StatelessWidget {
               decoration: BoxDecoration(
                 color: _aCardCream,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: const Color(0xFFE8D5BC),
-                  width: 1,
-                ),
+                border:
+                    Border.all(color: const Color(0xFFE8D5BC), width: 1),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -670,14 +581,12 @@ class _ItemDetailSheet extends StatelessWidget {
                       if (imageUrl != null && imageUrl.isNotEmpty) ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            imageUrl,
-                            width: 44,
-                            height: 44,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                _imgPlaceholder(isDrink),
-                          ),
+                          child: Image.network(imageUrl,
+                              width: 44,
+                              height: 44,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  _imgPlaceholder(isDrink)),
                         ),
                         const SizedBox(width: 10),
                       ] else ...[
@@ -692,41 +601,30 @@ class _ItemDetailSheet extends StatelessWidget {
                           color: _aBrown,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Text(
-                          '${qty}x',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        child: Text('${qty}x',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700)),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              name,
-                              style: const TextStyle(
-                                color: _aTextDark,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            Text(
-                              isDrink ? 'Item details' : 'Bakery item',
-                              style: const TextStyle(
-                                color: _aTextMuted,
-                                fontSize: 11.5,
-                              ),
-                            ),
+                            Text(name,
+                                style: const TextStyle(
+                                    color: _aTextDark,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700)),
+                            Text(isDrink ? 'Item details' : 'Bakery item',
+                                style: const TextStyle(
+                                    color: _aTextMuted, fontSize: 11.5)),
                           ],
                         ),
                       ),
                     ],
                   ),
-
                   if (isDrink) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -736,66 +634,52 @@ class _ItemDetailSheet extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: const Color(0xFFE8D5BC),
-                          width: 1,
-                        ),
+                            color: const Color(0xFFE8D5BC), width: 1),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Chosen Ingredients',
-                            style: TextStyle(
-                              color: _aTextDark,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          const Text('Chosen Ingredients',
+                              style: TextStyle(
+                                  color: _aTextDark,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
                           const Divider(
-                            color: Color(0xFFE8D5BC),
-                            height: 14,
-                          ),
-                          _Row2Col(
-                            'Milk type',
-                            milk ?? 'None',
-                            'Size',
-                            'Small',
-                          ),
+                              color: Color(0xFFE8D5BC), height: 14),
+                          _Row2Col('Milk type', milk ?? 'None', 'Size',
+                              'Small'),
                           const SizedBox(height: 8),
                           _Row2Col(
-                            'Sweetener',
-                            sweet ?? 'None',
-                            'Toppings',
-                            extras.isNotEmpty ? extras.join(', ') : 'None',
-                          ),
+                              'Sweetener',
+                              sweet ?? 'None',
+                              'Toppings',
+                              extras.isNotEmpty
+                                  ? extras.join(', ')
+                                  : 'None'),
                           const SizedBox(height: 8),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
-                                'Special Instruction',
-                                style: TextStyle(
-                                  color: _aTextDark,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              const Text('Special Instruction',
+                                  style: TextStyle(
+                                      color: _aTextDark,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
                               const SizedBox(height: 2),
                               Text(
-                                special?.isNotEmpty == true ? special! : 'None',
-                                style: const TextStyle(
-                                  color: _aTextMuted,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                                  special?.isNotEmpty == true
+                                      ? special!
+                                      : 'None',
+                                  style: const TextStyle(
+                                      color: _aTextMuted,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ],
                       ),
                     ),
                   ],
-
                   if (!isDrink) ...[
                     const SizedBox(height: 10),
                     Container(
@@ -805,34 +689,25 @@ class _ItemDetailSheet extends StatelessWidget {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: const Color(0xFFE8D5BC),
-                          width: 1,
-                        ),
+                            color: const Color(0xFFE8D5BC), width: 1),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Description',
-                            style: TextStyle(
-                              color: _aTextDark,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                          const Text('Description',
+                              style: TextStyle(
+                                  color: _aTextDark,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700)),
                           const Divider(
-                            color: Color(0xFFE8D5BC),
-                            height: 14,
-                          ),
+                              color: Color(0xFFE8D5BC), height: 14),
                           Text(
-                            (m['description'] as String?)?.isNotEmpty == true
-                                ? m['description'] as String
-                                : 'No description available.',
-                            style: const TextStyle(
-                              color: _aTextMuted,
-                              fontSize: 12,
-                            ),
-                          ),
+                              (m['description'] as String?)?.isNotEmpty ==
+                                      true
+                                  ? m['description'] as String
+                                  : 'No description available.',
+                              style: const TextStyle(
+                                  color: _aTextMuted, fontSize: 12)),
                         ],
                       ),
                     ),
@@ -848,32 +723,24 @@ class _ItemDetailSheet extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Total Price',
-                    style: TextStyle(
-                      color: _aTextDark,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    'Rs. ${total.toStringAsFixed(0)}',
-                    style: const TextStyle(
-                      color: _aBrown,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  const Text('Total Price',
+                      style: TextStyle(
+                          color: _aTextDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700)),
+                  Text('Rs. ${total.toStringAsFixed(0)}',
+                      style: const TextStyle(
+                          color: _aBrown,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
                 ],
               ),
-              if (!isHistory && onAction != null)
+              if (onAction != null)
                 GestureDetector(
                   onTap: onAction,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 14,
-                    ),
+                        horizontal: 24, vertical: 14),
                     decoration: BoxDecoration(
                       color: _aBrown,
                       borderRadius: BorderRadius.circular(24),
@@ -882,19 +749,17 @@ class _ItemDetailSheet extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          canStart ? 'Start' : 'Mark as Ready',
+                          isHistory
+                              ? 'Complete'
+                              : (canStart ? 'Start' : 'Mark as Ready'),
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(width: 6),
-                        const Icon(
-                          Icons.arrow_forward_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
+                        const Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: 18),
                       ],
                     ),
                   ),
@@ -926,11 +791,7 @@ class _ItemDetailSheet extends StatelessWidget {
 }
 
 class _Row2Col extends StatelessWidget {
-  final String label1;
-  final String value1;
-  final String label2;
-  final String value2;
-
+  final String label1, value1, label2, value2;
   const _Row2Col(this.label1, this.value1, this.label2, this.value2);
 
   @override
@@ -941,21 +802,14 @@ class _Row2Col extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label1,
-                style: const TextStyle(
-                  color: _aTextDark,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                value1,
-                style: const TextStyle(
-                  color: _aTextMuted,
-                  fontSize: 11,
-                ),
-              ),
+              Text(label1,
+                  style: const TextStyle(
+                      color: _aTextDark,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
+              Text(value1,
+                  style: const TextStyle(
+                      color: _aTextMuted, fontSize: 11)),
             ],
           ),
         ),
@@ -963,21 +817,14 @@ class _Row2Col extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label2,
-                style: const TextStyle(
-                  color: _aTextDark,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                value2,
-                style: const TextStyle(
-                  color: _aTextMuted,
-                  fontSize: 11,
-                ),
-              ),
+              Text(label2,
+                  style: const TextStyle(
+                      color: _aTextDark,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
+              Text(value2,
+                  style: const TextStyle(
+                      color: _aTextMuted, fontSize: 11)),
             ],
           ),
         ),

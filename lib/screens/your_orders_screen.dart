@@ -32,7 +32,7 @@ class _YourOrdersScreenState extends State<YourOrdersScreen> {
   Stream<QuerySnapshot> get _activeStream => FirebaseFirestore.instance
       .collection('orders')
       .where('customerId', isEqualTo: _uid)
-      .where('status', isEqualTo: 'active')
+      .where('status', whereIn: ['active', 'ready'])
       .snapshots();
 
   Stream<QuerySnapshot> get _pastStream => FirebaseFirestore.instance
@@ -52,9 +52,11 @@ class _YourOrdersScreenState extends State<YourOrdersScreen> {
       case 'incoming':
         return 'Confirmed';
       case 'active':
-        return 'Preparing';
+        return 'In Progress';
+      case 'ready':
+        return 'In Progress';
       case 'completed':
-        return 'Completed';
+        return 'Complete';
       default:
         return status;
     }
@@ -66,6 +68,8 @@ class _YourOrdersScreenState extends State<YourOrdersScreen> {
         return Colors.blue;
       case 'active':
         return Colors.orange;
+      case 'ready':
+        return Colors.orange;
       case 'completed':
         return Colors.green;
       default:
@@ -75,13 +79,16 @@ class _YourOrdersScreenState extends State<YourOrdersScreen> {
 
   Future<void> _reorder(List items) async {
     final cart = CartProviderWidget.of(context);
+
     for (final item in items) {
       final m = Map<String, dynamic>.from(item as Map);
       cart.addItem(CartItem.fromMap(m));
     }
+
     try {
       final orderId = await cart.placeOrder();
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

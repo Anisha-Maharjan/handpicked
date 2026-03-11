@@ -6,6 +6,7 @@ import 'package:handpicked/screens/stock.dart';
 import 'package:handpicked/screens/inventory.dart';
 import 'package:handpicked/screens/admin_orders_screen.dart';
 import 'package:handpicked/screens/admin_notifications_screen.dart';
+import 'package:handpicked/services/notification_service.dart';
 
 const Color _brown      = Color(0xFF7B4A1E);
 const Color _brownLight = Color(0xFF9C6235);
@@ -30,6 +31,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Initialise local notifications and request OS permission
+    NotificationService.instance.init();
     _loadAdminName();
   }
 

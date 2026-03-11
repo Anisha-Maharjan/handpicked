@@ -28,6 +28,8 @@ class _CartScreenState extends State<CartScreen> {
     setState(() => _placing = true);
     try {
       final cart = CartProviderWidget.of(context);
+      // placeOrder() in CartProvider handles both Firestore write
+      // and local notifications (customer + admin).
       final orderId = await cart.placeOrder();
       if (!mounted) return;
       setState(() => _checked.clear());
@@ -317,7 +319,8 @@ class _CartTile extends StatelessWidget {
                     fontSize: 12,
                   ),
                 ),
-                if (item.description != null && item.description!.isNotEmpty) ...[
+                if (item.description != null &&
+                    item.description!.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     item.description!,

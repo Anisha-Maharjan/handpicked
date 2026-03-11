@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:handpicked/screens/ingredient.dart';
 import 'package:handpicked/providers/cart_provider.dart';
+import 'package:handpicked/providers/favourites_provider.dart';
 
 const Color _brown     = Color(0xFF834D1E);
 const Color _cream     = Color(0xFFF5EDD8);
@@ -25,6 +26,12 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   int  _quantity    = 1;
   bool _isFavourite = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _isFavourite = FavouritesProviderWidget.of(context).isFavourite(widget.docId);
+  }
 
   String? _selectedMilkType;
   String? _selectedSweetenerType;
@@ -382,8 +389,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                     iconColor: _isFavourite
                                         ? Colors.redAccent
                                         : Colors.white,
-                                    onTap: () => setState(
-                                        () => _isFavourite = !_isFavourite),
+                                    onTap: () {
+                                      final favs = FavouritesProviderWidget.of(context);
+                                      final d = widget.initialData;
+                                      favs.toggle(FavouriteItem(
+                                        docId:    widget.docId,
+                                        name:     (d['name'] as String?) ?? 'Unknown',
+                                        price:    (d['price'] as num?) ?? 0,
+                                        imageUrl: d['imageURL'] as String?,
+                                        category: 'drink',
+                                      ));
+                                      setState(() => _isFavourite = !_isFavourite);
+                                    },
                                   ),
                                 ],
                               ),
